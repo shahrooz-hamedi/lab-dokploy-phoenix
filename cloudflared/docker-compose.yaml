@@ -1,0 +1,20 @@
+services:
+  cloudflared:
+    image: 'cloudflare/cloudflared:latest'
+
+    environment:
+      - 'TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:?}'
+
+    restart: unless-stopped
+
+    networks:
+      - dokploy-network
+
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+
+networks:
+  dokploy-network:
+    external: true
