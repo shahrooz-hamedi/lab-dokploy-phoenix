@@ -1,0 +1,56 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+
+      # Public URL
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: ${N8N_PORT}
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST}/
+      N8N_WEBHOOK_URL: https://${N8N_HOST}/
+
+      # Reverse proxy
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS}
+
+      # Security
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_SECURE_COOKIE: "true"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+
+      # General
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "true"
+      N8N_UNVERIFIED_PACKAGES_ENABLED: "true"
+
+      # Execution history
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "7"
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+    networks:
+      - dokploy-network
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --spider --quiet http://127.0.0.1:5678/healthz || exit 1
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  n8n_data:
+
+networks:
+  dokploy-network:
+    external: true
