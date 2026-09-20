@@ -1,0 +1,61 @@
+services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    restart: unless-stopped
+
+    ports:
+      # DNS
+      - "53:53/tcp"
+      - "53:53/udp"
+
+      # DNS-over-TLS
+      - "853:853/tcp"
+
+      # DNS-over-QUIC
+      - "853:853/udp"
+
+    volumes:
+      - adguardhome-work:/opt/adguardhome/work
+      - adguardhome-conf:/opt/adguardhome/conf
+      - /etc/dokploy/adguard-certs:/etc/adguard-certs:ro
+
+    networks:
+      default:
+        ipv4_address: 172.20.0.10
+      dokploy-network: {}
+
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+
+      # HTTP → HTTPS redirect
+      - traefik.http.routers.adguard-doh-http.rule=Host(`dns.phoenix-rtp.com`) && PathPrefix(`/dns-query`)
+      - traefik.http.routers.adguard-doh-http.entrypoints=web
+      - traefik.http.routers.adguard-doh-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.adguard-doh-http.service=adguard-doh
+
+      # HTTPS / DoH
+      - traefik.http.routers.adguard-doh.rule=Host(`dns.phoenix-rtp.com`) && PathPrefix(`/dns-query`)
+      - traefik.http.routers.adguard-doh.entrypoints=websecure
+      - traefik.http.routers.adguard-doh.tls=true
+      - traefik.http.routers.adguard-doh.tls.certresolver=letsencrypt
+      - traefik.http.routers.adguard-doh.service=adguard-doh
+
+      # Traefik → AdGuard
+      - traefik.http.services.adguard-doh.loadbalancer.server.port=443
+      - traefik.http.services.adguard-doh.loadbalancer.server.scheme=https
+      - traefik.http.services.adguard-doh.loadbalancer.serverstransport=adguard-tls@file
+
+volumes:
+  adguardhome-work:
+  adguardhome-conf:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+  dokploy-network:
+    external: true
