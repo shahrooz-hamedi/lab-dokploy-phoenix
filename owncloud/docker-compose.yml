@@ -210,7 +210,7 @@ services:
 
 
   drawio-init:
-    image: owncloud/web-extensions:draw-io-0.4.4
+    image: owncloud/web-extensions:draw-io-0.4.1
     user: root
     entrypoint:
       - /bin/sh
