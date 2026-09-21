@@ -3,8 +3,10 @@ services:
   ocis:
     image: owncloud/ocis:8.2.0
     restart: always
+
     command:
       - server
+
     environment:
       OCIS_URL: https://${OCIS_DOMAIN}
 
@@ -13,7 +15,7 @@ services:
       OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
       OCIS_MACHINE_AUTH_API_KEY: ${OCIS_MACHINE_AUTH_API_KEY}
 
-      START_ADDITIONAL_SERVICES: notifications
+      START_ADDITIONAL_SERVICES: ${START_ADDITIONAL_SERVICES}
 
     volumes:
       - ocis-config:/etc/ocis
@@ -88,6 +90,18 @@ services:
     networks:
       - dokploy-network
 
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "dokploy-network"
+
+      # WOPI endpoint
+      traefik.http.routers.lab-owncloud-wopi.rule: "Host(`${WOPISERVER_DOMAIN}`)"
+      traefik.http.routers.lab-owncloud-wopi.entrypoints: "websecure"
+      traefik.http.routers.lab-owncloud-wopi.tls: "true"
+      traefik.http.routers.lab-owncloud-wopi.service: "lab-owncloud-wopi"
+
+      traefik.http.services.lab-owncloud-wopi.loadbalancer.server.port: "9300"
+
 
   collabora:
     image: collabora/code:25.04.7.3.1
@@ -148,6 +162,7 @@ services:
 
 
 volumes:
+
   ocis-config:
     name: owncloud-ocis-config
 
@@ -159,5 +174,6 @@ volumes:
 
 
 networks:
+
   dokploy-network:
     external: true
