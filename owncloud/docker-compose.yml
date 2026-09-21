@@ -354,7 +354,6 @@ services:
       # --------------------------------------------------------
       # Services
       # --------------------------------------------------------
-      OCIS_ADD_RUN_SERVICES: notifications
 
       # Embedded NATS registry/event bus.
       MICRO_REGISTRY_ADDRESS: 127.0.0.1:9233
