@@ -1,111 +1,316 @@
 services:
 
+  # ============================================================
+  # oCIS CONFIGURATION INITIALIZER
+  # ============================================================
+  #
+  # Creates the configuration files required by oCIS and the
+  # web extensions inside the persistent ocis-config volume.
+  #
+  # This replaces the external config/ directory from the
+  # official example so the Dokploy application remains
+  # self-contained.
+  #
+  ocis-config:
+    image: alpine:3.24.2
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+
+        mkdir -p /etc/ocis
+
+        cat > /etc/ocis/csp.yaml <<'EOF'
+        directives:
+          child-src:
+            - '''self'''
+
+          connect-src:
+            - '''self'''
+            - 'blob:'
+            - 'https://companion.phoenix-rtp.com/'
+            - 'wss://companion.phoenix-rtp.com/'
+            - 'https://raw.githubusercontent.com/owncloud/awesome-ocis/'
+            - 'https://*.tile.openstreetmap.org'
+
+          default-src:
+            - '''none'''
+
+          font-src:
+            - '''self'''
+            - 'data:'
+
+          frame-ancestors:
+            - '''self'''
+
+          frame-src:
+            - '''self'''
+            - 'blob:'
+            - 'https://embed.diagrams.net/'
+            - 'https://office.phoenix-rtp.com/'
+            - 'https://owncloud.dev'
+
+          img-src:
+            - '''self'''
+            - 'data:'
+            - 'blob:'
+            - 'https://raw.githubusercontent.com/owncloud/awesome-ocis/'
+            - 'https://office.phoenix-rtp.com/'
+            - 'https://*.tile.openstreetmap.org'
+
+          manifest-src:
+            - '''self'''
+
+          media-src:
+            - '''self'''
+
+          object-src:
+            - '''self'''
+            - 'blob:'
+
+          script-src:
+            - '''self'''
+            - '''unsafe-inline'''
+
+          style-src:
+            - '''self'''
+            - '''unsafe-inline'''
+        EOF
+
+        cat > /etc/ocis/apps.yaml <<'EOF'
+        importer:
+          config:
+            companionUrl: https://companion.phoenix-rtp.com
+            supportedClouds:
+              - WebdavPublicLink
+              - OneDrive
+
+        external-sites:
+          config:
+            sites: []
+        EOF
+
+        cat > /etc/ocis/app-registry.yaml <<'EOF'
+        app_registry:
+          mimetypes:
+
+          - mime_type: application/vnd.oasis.opendocument.text
+            extension: odt
+            name: OpenDocument
+            description: OpenDocument text document
+            icon: ''
+            default_app: Collabora
+            allow_creation: true
+
+          - mime_type: application/vnd.oasis.opendocument.spreadsheet
+            extension: ods
+            name: OpenSpreadsheet
+            description: OpenDocument spreadsheet document
+            icon: ''
+            default_app: Collabora
+            allow_creation: true
+
+          - mime_type: application/vnd.oasis.opendocument.presentation
+            extension: odp
+            name: OpenPresentation
+            description: OpenDocument presentation document
+            icon: ''
+            default_app: Collabora
+            allow_creation: true
+
+          - mime_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            extension: docx
+            name: Microsoft Word
+            description: Microsoft Word document
+            icon: ''
+            default_app: Collabora
+            allow_creation: true
+
+          - mime_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+            extension: xlsx
+            name: Microsoft Excel
+            description: Microsoft Excel document
+            icon: ''
+            default_app: Collabora
+            allow_creation: true
+
+          - mime_type: application/vnd.openxmlformats-officedocument.presentationml.presentation
+            extension: pptx
+            name: Microsoft PowerPoint
+            description: Microsoft PowerPoint document
+            icon: ''
+            default_app: Collabora
+            allow_creation: true
+
+          - mime_type: application/pdf
+            extension: pdf
+            name: PDF
+            description: PDF document
+            icon: ''
+            default_app: ''
+            allow_creation: false
+        EOF
+
+        touch /etc/ocis/banned-password-list.txt
+
+    volumes:
+      - owncloud-ocis-config:/etc/ocis
+
+    restart: "no"
+
+
+  # ============================================================
+  # WEB EXTENSIONS
+  # ============================================================
+
+  extensions-init:
+    image: alpine:3.24.2
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /var/lib/ocis/web/assets/apps
+    volumes:
+      - owncloud-ocis-apps:/var/lib/ocis/web/assets/apps
+    restart: "no"
+
+
+  importer-init:
+    image: owncloud/web-extensions:importer-0.4.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/importer/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  advanced-search-init:
+    image: owncloud/web-extensions:advanced-search-0.3.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/advanced-search/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  drawio-init:
+    image: owncloud/web-extensions:draw-io-0.4.4
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/draw-io/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  externalsites-init:
+    image: owncloud/web-extensions:external-sites-0.4.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/external-sites/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  jsonviewer-init:
+    image: owncloud/web-extensions:json-viewer-0.4.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/json-viewer/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  photo-addon-init:
+    image: owncloud/web-extensions:photo-addon-0.3.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/photo-addon/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  progressbars-init:
+    image: owncloud/web-extensions:progress-bars-0.4.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/progress-bars/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  unzip-init:
+    image: owncloud/web-extensions:unzip-0.5.0
+    user: root
+    entrypoint:
+      - /bin/sh
+    command:
+      - -c
+      - cp -R /var/lib/nginx/html/unzip/ /apps
+    volumes:
+      - owncloud-ocis-apps:/apps
+    depends_on:
+      extensions-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+
+  # ============================================================
+  # INFINITE SCALE
+  # ============================================================
+
   ocis:
     image: owncloud/ocis:8.2.0
-    restart: always
-
-    command:
-      - server
-
-    environment:
-      OCIS_URL: https://${OCIS_DOMAIN}
-
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-
-      OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
-      OCIS_MACHINE_AUTH_API_KEY: ${OCIS_MACHINE_AUTH_API_KEY}
-
-      START_ADDITIONAL_SERVICES: ${START_ADDITIONAL_SERVICES}
-
-    volumes:
-      - ocis-config:/etc/ocis
-      - ocis-data:/var/lib/ocis
-      - ocis-apps:/var/lib/ocis/apps
-
-    expose:
-      - "9200"
-
-    networks:
-      - dokploy-network
-
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: "dokploy-network"
-
-      traefik.http.routers.lab-owncloud-ocis.rule: "Host(`${OCIS_DOMAIN}`)"
-      traefik.http.routers.lab-owncloud-ocis.entrypoints: "websecure"
-      traefik.http.routers.lab-owncloud-ocis.tls: "true"
-      traefik.http.routers.lab-owncloud-ocis.service: "lab-owncloud-ocis"
-
-      traefik.http.services.lab-owncloud-ocis.loadbalancer.server.port: "9200"
-
-
-  collaboration:
-    image: owncloud/ocis:8.2.0
-    restart: always
-
-    depends_on:
-      ocis:
-        condition: service_started
-      collabora:
-        condition: service_healthy
-
-    command:
-      - collaboration
-      - server
-
-    environment:
-      OCIS_URL: https://${OCIS_DOMAIN}
-
-      OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
-      OCIS_REVA_GATEWAY: ${OCIS_REVA_GATEWAY}
-
-      COLLABORATION_GRPC_ADDR: 0.0.0.0:9301
-      COLLABORATION_HTTP_ADDR: 0.0.0.0:9300
-
-      MICRO_REGISTRY: nats-js-kv
-      MICRO_REGISTRY_ADDRESS: ocis:9233
-
-      COLLABORATION_WOPI_SRC: https://${WOPISERVER_DOMAIN}
-
-      COLLABORATION_APP_NAME: Collabora
-      COLLABORATION_APP_PRODUCT: Collabora
-      COLLABORATION_APP_ADDR: https://${COLLABORA_DOMAIN}
-      COLLABORATION_APP_ICON: https://${COLLABORA_DOMAIN}/favicon.ico
-
-      COLLABORATION_APP_INSECURE: "false"
-      COLLABORATION_CS3API_DATAGATEWAY_INSECURE: "false"
-
-      COLLABORATION_WOPI_SECRET: ${COLLABORATION_WOPI_SECRET}
-
-      COLLABORATION_LOG_LEVEL: info
-
-    volumes:
-      - ocis-config:/etc/ocis
-
-    expose:
-      - "9300"
-      - "9301"
-
-    networks:
-      - dokploy-network
-
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: "dokploy-network"
-
-      # WOPI endpoint
-      traefik.http.routers.lab-owncloud-wopi.rule: "Host(`${WOPISERVER_DOMAIN}`)"
-      traefik.http.routers.lab-owncloud-wopi.entrypoints: "websecure"
-      traefik.http.routers.lab-owncloud-wopi.tls: "true"
-      traefik.http.routers.lab-owncloud-wopi.service: "lab-owncloud-wopi"
-
-      traefik.http.services.lab-owncloud-wopi.loadbalancer.server.port: "9300"
-
-
-  collabora:
-    image: collabora/code:25.04.7.3.1
-    restart: always
 
     entrypoint:
       - /bin/sh
@@ -113,21 +318,143 @@ services:
     command:
       - -c
       - |
-        coolconfig generate-proof-key
-        exec /start-collabora-online.sh
+        ocis init || true
+        exec ocis server
+
+    environment:
+      # --------------------------------------------------------
+      # Core
+      # --------------------------------------------------------
+      OCIS_URL: https://owncloud.phoenix-rtp.com
+      OCIS_LOG_LEVEL: info
+      OCIS_LOG_PRETTY: "false"
+
+      # Reverse proxy terminates TLS.
+      PROXY_TLS: "false"
+
+      # Gateway must be reachable by app-provider services.
+      GATEWAY_GRPC_ADDR: 0.0.0.0:9142
+
+      # We have valid certificates on the external domains.
+      OCIS_INSECURE: "false"
+
+      # Basic authentication disabled.
+      PROXY_ENABLE_BASIC_AUTH: "false"
+
+      # --------------------------------------------------------
+      # Security / identity
+      # --------------------------------------------------------
+      OCIS_JWT_SECRET: "${OCIS_JWT_SECRET}"
+
+      IDM_ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      IDM_CREATE_DEMO_USERS: "false"
+
+      OCIS_PASSWORD_POLICY_BANNED_PASSWORDS_LIST: /etc/ocis/banned-password-list.txt
+
+      # --------------------------------------------------------
+      # Services
+      # --------------------------------------------------------
+      OCIS_ADD_RUN_SERVICES: notifications
+
+      # Embedded NATS registry/event bus.
+      MICRO_REGISTRY_ADDRESS: 127.0.0.1:9233
+      NATS_NATS_HOST: 0.0.0.0
+      NATS_NATS_PORT: 9233
+
+      # --------------------------------------------------------
+      # CSP
+      # --------------------------------------------------------
+      PROXY_CSP_CONFIG_FILE_LOCATION: /etc/ocis/csp.yaml
+
+      # Domains used by CSP/configuration.
+      COLLABORA_DOMAIN: office.phoenix-rtp.com
+      COMPANION_DOMAIN: companion.phoenix-rtp.com
+
+      # --------------------------------------------------------
+      # Full-text search
+      # --------------------------------------------------------
+      SEARCH_EXTRACTOR_TYPE: tika
+      SEARCH_EXTRACTOR_TIKA_TIKA_URL: http://tika:9998
+      FRONTEND_FULL_TEXT_SEARCH_ENABLED: "true"
+
+      # --------------------------------------------------------
+      # SMTP
+      # --------------------------------------------------------
+      NOTIFICATIONS_SMTP_HOST: "${SMTP_HOST:-}"
+      NOTIFICATIONS_SMTP_PORT: "${SMTP_PORT:-}"
+      NOTIFICATIONS_SMTP_SENDER: "${SMTP_SENDER:-}"
+      NOTIFICATIONS_SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      NOTIFICATIONS_SMTP_INSECURE: "${SMTP_INSECURE:-false}"
+
+    volumes:
+      - owncloud-ocis-config:/etc/ocis
+      - owncloud-ocis-data:/var/lib/ocis
+      - owncloud-ocis-apps:/var/lib/ocis/web/assets/apps
+
+    expose:
+      - "9200"
+
+    networks:
+      - dokploy-network
+
+    depends_on:
+      ocis-config:
+        condition: service_completed_successfully
+      importer-init:
+        condition: service_completed_successfully
+      advanced-search-init:
+        condition: service_completed_successfully
+      drawio-init:
+        condition: service_completed_successfully
+      externalsites-init:
+        condition: service_completed_successfully
+      jsonviewer-init:
+        condition: service_completed_successfully
+      photo-addon-init:
+        condition: service_completed_successfully
+      progressbars-init:
+        condition: service_completed_successfully
+      unzip-init:
+        condition: service_completed_successfully
+
+    restart: always
+
+
+  # ============================================================
+  # APACHE TIKA
+  # ============================================================
+
+  tika:
+    image: apache/tika:3.2.3.0-full
+
+    expose:
+      - "9998"
+
+    networks:
+      - dokploy-network
+
+    restart: always
+
+
+  # ============================================================
+  # COLLABORA
+  # ============================================================
+
+  collabora:
+    image: collabora/code:25.04.9.3.1
 
     environment:
       DONT_GEN_SSL_CERT: "YES"
 
-      extra_params: >-
-        --o:ssl.enable=false
-        --o:ssl.ssl_verification=false
-        --o:ssl.termination=true
-        --o:welcome.enable=false
-        --o:net.frame_ancestors=https://${OCIS_DOMAIN}
+      extra_params: |
+        --o:ssl.enable=false \
+        --o:ssl.ssl_verification=false \
+        --o:ssl.termination=true \
+        --o:welcome.enable=false \
+        --o:net.frame_ancestors=owncloud.phoenix-rtp.com
 
-      username: ${COLLABORA_ADMIN_USERNAME}
-      password: ${COLLABORA_ADMIN_PASSWORD}
+      username: "${COLLABORA_ADMIN_USERNAME}"
+      password: "${COLLABORA_ADMIN_PASSWORD}"
 
     cap_add:
       - MKNOD
@@ -135,43 +462,177 @@ services:
     expose:
       - "9980"
 
+    networks:
+      - dokploy-network
+
+    entrypoint:
+      - /bin/bash
+      - -c
+
+    command:
+      - |
+        coolconfig generate-proof-key &&
+        /start-collabora-online.sh
+
     healthcheck:
       test:
         - CMD
-        - curl
-        - -f
-        - http://localhost:9980/hosting/discovery
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9980 &&
+          echo -e 'GET /hosting/discovery HTTP/1.1\r\nHost: localhost:9980\r\n\r\n' >&3 &&
+          head -n 1 <&3 | grep '200 OK'
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 20s
+      retries: 30
+      start_period: 30s
+
+    restart: always
+
+
+  # ============================================================
+  # COLLABORATION / WOPI BRIDGE
+  # ============================================================
+
+  collaboration:
+    image: owncloud/ocis:8.2.0
+
+    command:
+      - collaboration
+      - server
+
+    environment:
+      # --------------------------------------------------------
+      # Required collaboration configuration
+      # --------------------------------------------------------
+      OCIS_URL: https://owncloud.phoenix-rtp.com
+      OCIS_JWT_SECRET: "${OCIS_JWT_SECRET}"
+      OCIS_REVA_GATEWAY: com.owncloud.api.gateway
+
+      MICRO_REGISTRY: nats-js-kv
+      MICRO_REGISTRY_ADDRESS: ocis:9233
+
+      # --------------------------------------------------------
+      # Collaboration listeners
+      # --------------------------------------------------------
+      COLLABORATION_GRPC_ADDR: 0.0.0.0:9301
+      COLLABORATION_HTTP_ADDR: 0.0.0.0:9300
+
+      # --------------------------------------------------------
+      # WOPI
+      # --------------------------------------------------------
+      #
+      # Collabora reaches the WOPI service internally.
+      # There is deliberately NO separate public WOPI domain.
+      #
+      COLLABORATION_WOPI_SRC: http://collaboration:9300
+      COLLABORATION_WOPI_SECRET: "${COLLABORATION_WOPI_SECRET}"
+
+      # --------------------------------------------------------
+      # Collabora registration
+      # --------------------------------------------------------
+      COLLABORATION_APP_NAME: CollaboraOnline
+      COLLABORATION_APP_PRODUCT: Collabora
+      COLLABORATION_APP_ADDR: https://office.phoenix-rtp.com
+      COLLABORATION_APP_ICON: https://office.phoenix-rtp.com/favicon.ico
+
+      # Valid public/LAN certificate is used.
+      COLLABORATION_APP_INSECURE: "false"
+
+      # Collabora generates and exposes its proof key.
+      COLLABORATION_APP_PROOF_DISABLE: "false"
+
+      # Internal CS3 data gateway communication.
+      COLLABORATION_CS3API_DATAGATEWAY_INSECURE: "false"
+
+      COLLABORATION_LOG_LEVEL: info
+      COLLABORATION_LOG_PRETTY: "false"
+
+    volumes:
+      - owncloud-ocis-config:/etc/ocis
 
     networks:
       - dokploy-network
 
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: "dokploy-network"
+    depends_on:
+      ocis:
+        condition: service_started
+      collabora:
+        condition: service_healthy
 
-      traefik.http.routers.lab-owncloud-collabora.rule: "Host(`${COLLABORA_DOMAIN}`)"
-      traefik.http.routers.lab-owncloud-collabora.entrypoints: "websecure"
-      traefik.http.routers.lab-owncloud-collabora.tls: "true"
-      traefik.http.routers.lab-owncloud-collabora.service: "lab-owncloud-collabora"
+    expose:
+      - "9300"
+      - "9301"
 
-      traefik.http.services.lab-owncloud-collabora.loadbalancer.server.port: "9980"
+    restart: always
 
+
+  # ============================================================
+  # UPPY COMPANION
+  # ============================================================
+
+  companion:
+    image: transloadit/companion:5.8.0
+
+    environment:
+      NODE_ENV: production
+
+      # The TLS certificate for ownCloud is valid, so we do not
+      # disable Node TLS verification.
+      NODE_TLS_REJECT_UNAUTHORIZED: "1"
+
+      COMPANION_DATADIR: /tmp/companion/
+      COMPANION_DOMAIN: companion.phoenix-rtp.com
+      COMPANION_PROTOCOL: https
+
+      # Only allow uploads into this oCIS endpoint.
+      COMPANION_UPLOAD_URLS: "^https://owncloud\\.phoenix-rtp\\.com/"
+
+      # Microsoft OneDrive / Azure App Registration.
+      COMPANION_ONEDRIVE_KEY: "${COMPANION_ONEDRIVE_KEY}"
+      COMPANION_ONEDRIVE_SECRET: "${COMPANION_ONEDRIVE_SECRET}"
+
+      COMPANION_TUS_DEFERRED_UPLOAD_LENGTH: "false"
+
+      # Browser origins allowed to communicate with Companion.
+      COMPANION_CLIENT_ORIGINS: >-
+        https://owncloud.phoenix-rtp.com,https://companion.phoenix-rtp.com
+
+    volumes:
+      - owncloud-companion-data:/tmp/companion/
+
+    expose:
+      - "3020"
+
+    networks:
+      - dokploy-network
+
+    restart: always
+
+
+# ==============================================================
+# PERSISTENT STORAGE
+# ==============================================================
 
 volumes:
 
-  ocis-config:
+  owncloud-ocis-config:
     name: owncloud-ocis-config
 
-  ocis-data:
+  owncloud-ocis-data:
     name: owncloud-ocis-data
 
-  ocis-apps:
+  owncloud-ocis-apps:
     name: owncloud-ocis-apps
 
+  owncloud-companion-data:
+    name: owncloud-companion-data
+
+
+# ==============================================================
+# DOKPLOY SHARED NETWORK
+# ==============================================================
 
 networks:
 
