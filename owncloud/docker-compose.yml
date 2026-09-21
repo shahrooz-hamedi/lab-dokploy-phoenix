@@ -95,7 +95,7 @@ services:
 
 
   # ============================================================
-  # oCIS WEB EXTENSIONS
+  # WEB EXTENSIONS
   # ============================================================
 
   importer-init:
@@ -291,6 +291,7 @@ services:
       OCIS_ADD_RUN_SERVICES: ${START_ADDITIONAL_SERVICES}
 
       OCIS_URL: https://${OCIS_DOMAIN}
+
       OCIS_LOG_LEVEL: info
       OCIS_LOG_PRETTY: "false"
 
@@ -314,6 +315,7 @@ services:
       NOTIFICATIONS_SMTP_INSECURE: ${SMTP_INSECURE}
 
       MICRO_REGISTRY_ADDRESS: 127.0.0.1:9233
+
       NATS_NATS_HOST: 0.0.0.0
       NATS_NATS_PORT: 9233
 
@@ -352,10 +354,10 @@ services:
 
 
   # ============================================================
-  # COLLABORA WOPI PROOF KEY INITIALIZATION
+  # COLLABORA WOPI PROOF KEY
   #
-  # Generates a persistent RSA private key used by Collabora
-  # for WOPI proof-key signing.
+  # Creates the RSA private/public proof-key pair once.
+  # The volumes persist the key across container recreation.
   # ============================================================
 
   collabora-proof-key-init:
@@ -368,33 +370,45 @@ services:
     command:
       - -ec
       - |
-        if [ ! -s /proof/proof_key ]; then
-          echo "Generating Collabora WOPI proof key..."
+        set -eu
 
-          openssl genrsa \
-            -traditional \
-            -out /proof/proof_key.tmp \
-            4096
+        if [ ! -s /private/proof_key ] || [ ! -s /public/proof_key.pub ]; then
+          echo "Generating Collabora WOPI proof key pair..."
 
-          chown 1001:1001 /proof/proof_key.tmp
-          chmod 600 /proof/proof_key.tmp
+          openssl genpkey \
+            -algorithm RSA \
+            -out /private/proof_key.tmp \
+            -pkeyopt rsa_keygen_bits:2048
 
-          mv /proof/proof_key.tmp /proof/proof_key
+          openssl rsa \
+            -in /private/proof_key.tmp \
+            -pubout \
+            -out /public/proof_key.pub.tmp
 
-          echo "Collabora WOPI proof key generated."
+          chown 1001:1001 /private/proof_key.tmp
+          chown 1001:1001 /public/proof_key.pub.tmp
+
+          chmod 600 /private/proof_key.tmp
+          chmod 644 /public/proof_key.pub.tmp
+
+          mv /private/proof_key.tmp /private/proof_key
+          mv /public/proof_key.pub.tmp /public/proof_key.pub
+
+          echo "Collabora WOPI proof key pair generated."
         else
-          echo "Collabora WOPI proof key already exists; keeping it."
+          echo "Collabora WOPI proof key pair already exists."
         fi
 
     volumes:
-      - collabora-proof-key:/proof
+      - collabora-proof-key-private:/private
+      - collabora-proof-key-public:/public
 
     networks:
       - dokploy-network
 
 
   # ============================================================
-  # oCIS COLLABORATION SERVICE
+  # oCIS COLLABORATION
   # ============================================================
 
   collaboration:
@@ -413,6 +427,7 @@ services:
 
     environment:
       OCIS_URL: https://${OCIS_DOMAIN}
+
       OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
       OCIS_REVA_GATEWAY: ${OCIS_REVA_GATEWAY}
 
@@ -476,7 +491,8 @@ services:
       - MKNOD
 
     volumes:
-      - collabora-proof-key:/etc/coolwsd/proof_key:ro
+      - collabora-proof-key-private:/etc/coolwsd/proof_key:ro
+      - collabora-proof-key-public:/etc/coolwsd/proof_key.pub:ro
 
     expose:
       - "9980"
@@ -496,8 +512,6 @@ services:
     environment:
       NODE_ENV: production
 
-      # Companion must be able to communicate with the HTTPS
-      # oCIS endpoint using the internal trusted certificate.
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
       COMPANION_DATADIR: /tmp/companion/
@@ -509,6 +523,7 @@ services:
       COMPANION_ONEDRIVE_SECRET: ${COMPANION_ONEDRIVE_SECRET}
 
       COMPANION_TUS_DEFERRED_UPLOAD_LENGTH: "false"
+
       COMPANION_CLIENT_ORIGINS: "https://${OCIS_DOMAIN},https://${COMPANION_DOMAIN}"
 
     volumes:
@@ -521,9 +536,9 @@ services:
       - dokploy-network
 
 
-# ==============================================================
+# ============================================================
 # VOLUMES
-# ==============================================================
+# ============================================================
 
 volumes:
 
@@ -539,13 +554,16 @@ volumes:
   companion-data:
     name: owncloud-companion-data
 
-  collabora-proof-key:
-    name: owncloud-collabora-proof-key
+  collabora-proof-key-private:
+    name: owncloud-collabora-proof-key-private
+
+  collabora-proof-key-public:
+    name: owncloud-collabora-proof-key-public
 
 
-# ==============================================================
+# ============================================================
 # NETWORK
-# ==============================================================
+# ============================================================
 
 networks:
 
