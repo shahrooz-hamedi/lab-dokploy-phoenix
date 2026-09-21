@@ -20,6 +20,7 @@ services:
         set -eu
 
         mkdir -p /etc/ocis
+        mkdir -p /var/lib/ocis/config
 
         cat > /etc/ocis/csp.yaml <<'EOF'
         directives:
@@ -78,7 +79,7 @@ services:
             - '''unsafe-inline'''
         EOF
 
-        cat > /etc/ocis/apps.yaml <<'EOF'
+        cat > /var/lib/ocis/config/apps.yaml <<'EOF'
         importer:
           config:
             companionUrl: https://companion.phoenix-rtp.com
@@ -156,6 +157,7 @@ services:
 
     volumes:
       - owncloud-ocis-config:/etc/ocis
+      - owncloud-ocis-data:/var/lib/ocis
 
     restart: "no"
 
@@ -327,18 +329,12 @@ services:
       # --------------------------------------------------------
       OCIS_URL: https://owncloud.phoenix-rtp.com
       OCIS_LOG_LEVEL: info
+      OCIS_BASE_DATA_PATH: /var/lib/ocis
       OCIS_LOG_PRETTY: "false"
 
-      # Reverse proxy terminates TLS.
       PROXY_TLS: "false"
-
-      # Gateway must be reachable by app-provider services.
       GATEWAY_GRPC_ADDR: 0.0.0.0:9142
-
-      # We have valid certificates on the external domains.
       OCIS_INSECURE: "false"
-
-      # Basic authentication disabled.
       PROXY_ENABLE_BASIC_AUTH: "false"
 
       # --------------------------------------------------------
@@ -354,8 +350,6 @@ services:
       # --------------------------------------------------------
       # Services
       # --------------------------------------------------------
-
-      # Embedded NATS registry/event bus.
       MICRO_REGISTRY_ADDRESS: 127.0.0.1:9233
       NATS_NATS_HOST: 0.0.0.0
       NATS_NATS_PORT: 9233
@@ -370,7 +364,6 @@ services:
       # --------------------------------------------------------
       PROXY_CSP_CONFIG_FILE_LOCATION: /etc/ocis/csp.yaml
 
-      # Domains used by CSP/configuration.
       COLLABORA_DOMAIN: office.phoenix-rtp.com
       COMPANION_DOMAIN: companion.phoenix-rtp.com
 
@@ -526,10 +519,6 @@ services:
       # --------------------------------------------------------
       # WOPI
       # --------------------------------------------------------
-      #
-      # Collabora reaches the WOPI service internally.
-      # There is deliberately NO separate public WOPI domain.
-      #
       COLLABORATION_WOPI_SRC: http://collaboration:9300
       COLLABORATION_WOPI_SECRET: "${COLLABORATION_WOPI_SECRET}"
 
@@ -541,13 +530,12 @@ services:
       COLLABORATION_APP_ADDR: https://office.phoenix-rtp.com
       COLLABORATION_APP_ICON: https://office.phoenix-rtp.com/favicon.ico
 
-      # Valid public/LAN certificate is used.
       COLLABORATION_APP_INSECURE: "false"
-
-      # Collabora generates and exposes its proof key.
       COLLABORATION_APP_PROOF_DISABLE: "false"
 
+      # --------------------------------------------------------
       # Internal CS3 data gateway communication.
+      # --------------------------------------------------------
       COLLABORATION_CS3API_DATAGATEWAY_INSECURE: "false"
 
       COLLABORATION_LOG_LEVEL: info
@@ -582,24 +570,19 @@ services:
     environment:
       NODE_ENV: production
 
-      # The TLS certificate for ownCloud is valid, so we do not
-      # disable Node TLS verification.
       NODE_TLS_REJECT_UNAUTHORIZED: "1"
 
       COMPANION_DATADIR: /tmp/companion/
       COMPANION_DOMAIN: companion.phoenix-rtp.com
       COMPANION_PROTOCOL: https
 
-      # Only allow uploads into this oCIS endpoint.
       COMPANION_UPLOAD_URLS: "^https://owncloud\\.phoenix-rtp\\.com/"
 
-      # Microsoft OneDrive / Azure App Registration.
       COMPANION_ONEDRIVE_KEY: "${COMPANION_ONEDRIVE_KEY}"
       COMPANION_ONEDRIVE_SECRET: "${COMPANION_ONEDRIVE_SECRET}"
 
       COMPANION_TUS_DEFERRED_UPLOAD_LENGTH: "false"
 
-      # Browser origins allowed to communicate with Companion.
       COMPANION_CLIENT_ORIGINS: >-
         https://owncloud.phoenix-rtp.com,https://companion.phoenix-rtp.com
 
@@ -642,6 +625,7 @@ networks:
   default:
     name: dokploy-network
     external: true
+
   dokploy-network:
     name: dokploy-network
     external: true
