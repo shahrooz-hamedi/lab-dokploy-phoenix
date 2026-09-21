@@ -1,5 +1,9 @@
 services:
 
+  # ============================================================
+  # oCIS CONFIGURATION
+  # ============================================================
+
   ocis-config:
     image: alpine:latest
     restart: "no"
@@ -81,7 +85,7 @@ services:
         ownCloud-1
         EOF
 
-        echo "OCIS configuration initialized."
+        echo "oCIS configuration initialized."
 
     volumes:
       - ocis-config:/etc/ocis
@@ -89,6 +93,10 @@ services:
     networks:
       - dokploy-network
 
+
+  # ============================================================
+  # oCIS WEB EXTENSIONS
+  # ============================================================
 
   importer-init:
     image: owncloud/web-extensions:importer-latest
@@ -242,6 +250,10 @@ services:
       - dokploy-network
 
 
+  # ============================================================
+  # oCIS
+  # ============================================================
+
   ocis:
     image: owncloud/ocis:latest
     restart: always
@@ -324,6 +336,10 @@ services:
       - dokploy-network
 
 
+  # ============================================================
+  # TIKA
+  # ============================================================
+
   tika:
     image: apache/tika:latest-full
     restart: always
@@ -334,6 +350,52 @@ services:
     networks:
       - dokploy-network
 
+
+  # ============================================================
+  # COLLABORA WOPI PROOF KEY INITIALIZATION
+  #
+  # Generates a persistent RSA private key used by Collabora
+  # for WOPI proof-key signing.
+  # ============================================================
+
+  collabora-proof-key-init:
+    image: alpine/openssl:3.5.8
+    restart: "no"
+
+    entrypoint:
+      - /bin/sh
+
+    command:
+      - -ec
+      - |
+        if [ ! -s /proof/proof_key ]; then
+          echo "Generating Collabora WOPI proof key..."
+
+          openssl genrsa \
+            -traditional \
+            -out /proof/proof_key.tmp \
+            4096
+
+          chown 1001:1001 /proof/proof_key.tmp
+          chmod 600 /proof/proof_key.tmp
+
+          mv /proof/proof_key.tmp /proof/proof_key
+
+          echo "Collabora WOPI proof key generated."
+        else
+          echo "Collabora WOPI proof key already exists; keeping it."
+        fi
+
+    volumes:
+      - collabora-proof-key:/proof
+
+    networks:
+      - dokploy-network
+
+
+  # ============================================================
+  # oCIS COLLABORATION SERVICE
+  # ============================================================
 
   collaboration:
     image: owncloud/ocis:latest
@@ -385,9 +447,17 @@ services:
       - dokploy-network
 
 
+  # ============================================================
+  # COLLABORA CODE
+  # ============================================================
+
   collabora:
     image: collabora/code:latest
     restart: always
+
+    depends_on:
+      collabora-proof-key-init:
+        condition: service_completed_successfully
 
     environment:
       DONT_GEN_SSL_CERT: "YES"
@@ -405,6 +475,9 @@ services:
     cap_add:
       - MKNOD
 
+    volumes:
+      - collabora-proof-key:/etc/coolwsd/proof_key:ro
+
     expose:
       - "9980"
 
@@ -412,12 +485,19 @@ services:
       - dokploy-network
 
 
+  # ============================================================
+  # UPPY COMPANION / ONEDRIVE
+  # ============================================================
+
   companion:
     image: transloadit/companion:5.8.0
     restart: always
 
     environment:
       NODE_ENV: production
+
+      # Companion must be able to communicate with the HTTPS
+      # oCIS endpoint using the internal trusted certificate.
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
 
       COMPANION_DATADIR: /tmp/companion/
@@ -441,7 +521,12 @@ services:
       - dokploy-network
 
 
+# ==============================================================
+# VOLUMES
+# ==============================================================
+
 volumes:
+
   ocis-config:
     name: owncloud-ocis-config
 
@@ -454,7 +539,15 @@ volumes:
   companion-data:
     name: owncloud-companion-data
 
+  collabora-proof-key:
+    name: owncloud-collabora-proof-key
+
+
+# ==============================================================
+# NETWORK
+# ==============================================================
 
 networks:
+
   dokploy-network:
     external: true
