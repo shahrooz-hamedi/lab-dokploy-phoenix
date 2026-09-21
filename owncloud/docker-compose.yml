@@ -85,8 +85,6 @@ services:
         ownCloud-1
         EOF
 
-        echo "oCIS configuration initialized."
-
     volumes:
       - ocis-config:/etc/ocis
 
@@ -102,17 +100,13 @@ services:
     image: owncloud/web-extensions:importer-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/importer/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -121,17 +115,13 @@ services:
     image: owncloud/web-extensions:advanced-search-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/advanced-search/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -140,17 +130,13 @@ services:
     image: owncloud/web-extensions:draw-io-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/draw-io/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -159,17 +145,13 @@ services:
     image: owncloud/web-extensions:external-sites-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/external-sites/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -178,17 +160,13 @@ services:
     image: owncloud/web-extensions:json-viewer-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/json-viewer/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -197,17 +175,13 @@ services:
     image: owncloud/web-extensions:photo-addon-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/photo-addon/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -216,17 +190,13 @@ services:
     image: owncloud/web-extensions:progress-bars-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/progress-bars/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -235,17 +205,13 @@ services:
     image: owncloud/web-extensions:unzip-latest
     restart: "no"
     user: root
-
     entrypoint:
       - /bin/sh
-
     command:
       - -c
       - cp -R /var/lib/nginx/html/unzip/ /apps
-
     volumes:
       - ocis-apps:/apps
-
     networks:
       - dokploy-network
 
@@ -297,7 +263,6 @@ services:
 
       PROXY_TLS: "false"
       PROXY_ENABLE_BASIC_AUTH: "false"
-
       OCIS_INSECURE: "false"
 
       GATEWAY_GRPC_ADDR: 0.0.0.0:9142
@@ -354,61 +319,7 @@ services:
 
 
   # ============================================================
-  # COLLABORA WOPI PROOF KEY
-  #
-  # Creates the RSA private/public proof-key pair once.
-  # The volumes persist the key across container recreation.
-  # ============================================================
-
-  collabora-proof-key-init:
-    image: alpine/openssl:3.5.8
-    restart: "no"
-
-    entrypoint:
-      - /bin/sh
-
-    command:
-      - -ec
-      - |
-        set -eu
-
-        if [ ! -s /private/proof_key ] || [ ! -s /public/proof_key.pub ]; then
-          echo "Generating Collabora WOPI proof key pair..."
-
-          openssl genpkey \
-            -algorithm RSA \
-            -out /private/proof_key.tmp \
-            -pkeyopt rsa_keygen_bits:2048
-
-          openssl rsa \
-            -in /private/proof_key.tmp \
-            -pubout \
-            -out /public/proof_key.pub.tmp
-
-          chown 1001:1001 /private/proof_key.tmp
-          chown 1001:1001 /public/proof_key.pub.tmp
-
-          chmod 600 /private/proof_key.tmp
-          chmod 644 /public/proof_key.pub.tmp
-
-          mv /private/proof_key.tmp /private/proof_key
-          mv /public/proof_key.pub.tmp /public/proof_key.pub
-
-          echo "Collabora WOPI proof key pair generated."
-        else
-          echo "Collabora WOPI proof key pair already exists."
-        fi
-
-    volumes:
-      - collabora-proof-key-private:/private
-      - collabora-proof-key-public:/public
-
-    networks:
-      - dokploy-network
-
-
-  # ============================================================
-  # oCIS COLLABORATION
+  # COLLABORATION SERVICE
   # ============================================================
 
   collaboration:
@@ -419,7 +330,7 @@ services:
       ocis:
         condition: service_started
       collabora:
-        condition: service_started
+        condition: service_healthy
 
     command:
       - collaboration
@@ -464,15 +375,26 @@ services:
 
   # ============================================================
   # COLLABORA CODE
+  #
+  # IMPORTANT:
+  # Pin to 25.04.7.3.1 instead of latest.
+  #
+  # The ownCloud integration example uses this image and
+  # explicitly generates the WOPI proof key before startup.
   # ============================================================
 
   collabora:
-    image: collabora/code:latest
+    image: collabora/code:25.04.7.3.1
     restart: always
 
-    depends_on:
-      collabora-proof-key-init:
-        condition: service_completed_successfully
+    entrypoint:
+      - /bin/sh
+
+    command:
+      - -c
+      - |
+        coolconfig generate-proof-key
+        exec /start-collabora-online.sh
 
     environment:
       DONT_GEN_SSL_CERT: "YES"
@@ -482,27 +404,40 @@ services:
         --o:ssl.ssl_verification=false
         --o:ssl.termination=true
         --o:welcome.enable=false
-        --o:net.frame_ancestors=https://${OCIS_DOMAIN}
+        --o:net.content_security_policy=frame-ancestors ${OCIS_URL:-https://${OCIS_DOMAIN}}
 
       username: ${COLLABORA_ADMIN_USERNAME}
       password: ${COLLABORA_ADMIN_PASSWORD}
 
     cap_add:
       - MKNOD
-
-    volumes:
-      - collabora-proof-key-private:/etc/coolwsd/proof_key:ro
-      - collabora-proof-key-public:/etc/coolwsd/proof_key.pub:ro
+      - SYS_ADMIN
 
     expose:
       - "9980"
+
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9980 &&
+          echo -e 'GET /hosting/discovery HTTP/1.1\r\nHost: localhost:9980\r\n\r\n'
+          >&3 &&
+          head -n 1 <&3 | grep '200 OK'
+
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 5
 
     networks:
       - dokploy-network
 
 
   # ============================================================
-  # UPPY COMPANION / ONEDRIVE
+  # UPPY COMPANION
   # ============================================================
 
   companion:
@@ -517,6 +452,7 @@ services:
       COMPANION_DATADIR: /tmp/companion/
       COMPANION_DOMAIN: ${COMPANION_DOMAIN}
       COMPANION_PROTOCOL: https
+
       COMPANION_UPLOAD_URLS: "^https://${OCIS_DOMAIN}/"
 
       COMPANION_ONEDRIVE_KEY: ${COMPANION_ONEDRIVE_KEY}
@@ -553,12 +489,6 @@ volumes:
 
   companion-data:
     name: owncloud-companion-data
-
-  collabora-proof-key-private:
-    name: owncloud-collabora-proof-key-private
-
-  collabora-proof-key-public:
-    name: owncloud-collabora-proof-key-public
 
 
 # ============================================================
