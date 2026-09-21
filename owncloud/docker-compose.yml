@@ -1,300 +1,24 @@
 services:
 
-  # ============================================================
-  # oCIS CONFIGURATION
-  # ============================================================
-
-  ocis-config:
-    image: alpine:latest
-    restart: "no"
-
-    environment:
-      COMPANION_DOMAIN: ${COMPANION_DOMAIN}
-      COLLABORA_DOMAIN: ${COLLABORA_DOMAIN}
-
-    command:
-      - /bin/sh
-      - -c
-      - |
-        set -eu
-        mkdir -p /etc/ocis
-
-        cat > /etc/ocis/csp.yaml <<EOF
-        directives:
-          child-src:
-            - '''self'''
-          connect-src:
-            - '''self'''
-            - 'blob:'
-            - 'https://${COMPANION_DOMAIN}/'
-            - 'wss://${COMPANION_DOMAIN}/'
-            - 'https://raw.githubusercontent.com/owncloud/awesome-ocis/'
-            - 'https://*.tile.openstreetmap.org'
-          default-src:
-            - '''none'''
-          font-src:
-            - '''self'''
-            - 'data:'
-          frame-ancestors:
-            - '''self'''
-          frame-src:
-            - '''self'''
-            - 'blob:'
-            - 'https://embed.diagrams.net/'
-            - 'https://${COLLABORA_DOMAIN}/'
-          img-src:
-            - '''self'''
-            - 'data:'
-            - 'blob:'
-            - 'https://raw.githubusercontent.com/owncloud/awesome-ocis/'
-            - 'https://${COLLABORA_DOMAIN}/'
-            - 'https://*.tile.openstreetmap.org'
-          manifest-src:
-            - '''self'''
-          media-src:
-            - '''self'''
-          object-src:
-            - '''self'''
-            - 'blob:'
-          script-src:
-            - '''self'''
-            - '''unsafe-inline'''
-          style-src:
-            - '''self'''
-            - '''unsafe-inline'''
-        EOF
-
-        cat > /etc/ocis/apps.yaml <<EOF
-        importer:
-          config:
-            companionUrl: https://${COMPANION_DOMAIN}
-            supportedClouds:
-              - WebdavPublicLink
-              - OneDrive
-
-        external-sites:
-          config:
-            sites: []
-        EOF
-
-        cat > /etc/ocis/banned-password-list.txt <<EOF
-        password
-        12345678
-        123
-        ownCloud
-        ownCloud-1
-        EOF
-
-    volumes:
-      - ocis-config:/etc/ocis
-
-    networks:
-      - dokploy-network
-
-
-  # ============================================================
-  # WEB EXTENSIONS
-  # ============================================================
-
-  importer-init:
-    image: owncloud/web-extensions:importer-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/importer/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  advanced-search-init:
-    image: owncloud/web-extensions:advanced-search-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/advanced-search/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  drawio-init:
-    image: owncloud/web-extensions:draw-io-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/draw-io/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  externalsites-init:
-    image: owncloud/web-extensions:external-sites-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/external-sites/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  jsonviewer-init:
-    image: owncloud/web-extensions:json-viewer-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/json-viewer/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  photo-addon-init:
-    image: owncloud/web-extensions:photo-addon-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/photo-addon/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  progressbars-init:
-    image: owncloud/web-extensions:progress-bars-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/progress-bars/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  unzip-init:
-    image: owncloud/web-extensions:unzip-latest
-    restart: "no"
-    user: root
-    entrypoint:
-      - /bin/sh
-    command:
-      - -c
-      - cp -R /var/lib/nginx/html/unzip/ /apps
-    volumes:
-      - ocis-apps:/apps
-    networks:
-      - dokploy-network
-
-
-  # ============================================================
-  # oCIS
-  # ============================================================
-
   ocis:
-    image: owncloud/ocis:latest
+    image: owncloud/ocis:8.2.0
     restart: always
-
-    depends_on:
-      ocis-config:
-        condition: service_completed_successfully
-      importer-init:
-        condition: service_completed_successfully
-      advanced-search-init:
-        condition: service_completed_successfully
-      drawio-init:
-        condition: service_completed_successfully
-      externalsites-init:
-        condition: service_completed_successfully
-      jsonviewer-init:
-        condition: service_completed_successfully
-      photo-addon-init:
-        condition: service_completed_successfully
-      progressbars-init:
-        condition: service_completed_successfully
-      unzip-init:
-        condition: service_completed_successfully
-
-    entrypoint:
-      - /bin/sh
-
     command:
-      - -c
-      - |
-        ocis init || true
-        exec ocis server
-
+      - server
     environment:
-      OCIS_ADD_RUN_SERVICES: ${START_ADDITIONAL_SERVICES}
-
       OCIS_URL: https://${OCIS_DOMAIN}
 
-      OCIS_LOG_LEVEL: info
-      OCIS_LOG_PRETTY: "false"
-
-      PROXY_TLS: "false"
-      PROXY_ENABLE_BASIC_AUTH: "false"
-      OCIS_INSECURE: "false"
-
-      GATEWAY_GRPC_ADDR: 0.0.0.0:9142
-
-      IDM_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      IDM_CREATE_DEMO_USERS: "false"
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
 
       OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
-      OCIS_REVA_GATEWAY: ${OCIS_REVA_GATEWAY}
+      OCIS_MACHINE_AUTH_API_KEY: ${OCIS_MACHINE_AUTH_API_KEY}
 
-      NOTIFICATIONS_SMTP_HOST: ${SMTP_HOST}
-      NOTIFICATIONS_SMTP_PORT: ${SMTP_PORT}
-      NOTIFICATIONS_SMTP_SENDER: ${SMTP_SENDER}
-      NOTIFICATIONS_SMTP_USERNAME: ${SMTP_USERNAME}
-      NOTIFICATIONS_SMTP_INSECURE: ${SMTP_INSECURE}
-
-      MICRO_REGISTRY_ADDRESS: 127.0.0.1:9233
-
-      NATS_NATS_HOST: 0.0.0.0
-      NATS_NATS_PORT: 9233
-
-      PROXY_CSP_CONFIG_FILE_LOCATION: /etc/ocis/csp.yaml
-
-      COLLABORA_DOMAIN: ${COLLABORA_DOMAIN}
-      COMPANION_DOMAIN: ${COMPANION_DOMAIN}
-
-      OCIS_PASSWORD_POLICY_BANNED_PASSWORDS_LIST: /etc/ocis/banned-password-list.txt
+      START_ADDITIONAL_SERVICES: notifications
 
     volumes:
       - ocis-config:/etc/ocis
       - ocis-data:/var/lib/ocis
-      - ocis-apps:/apps
+      - ocis-apps:/var/lib/ocis/apps
 
     expose:
       - "9200"
@@ -302,28 +26,20 @@ services:
     networks:
       - dokploy-network
 
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "dokploy-network"
 
-  # ============================================================
-  # TIKA
-  # ============================================================
+      traefik.http.routers.lab-owncloud-ocis.rule: "Host(`${OCIS_DOMAIN}`)"
+      traefik.http.routers.lab-owncloud-ocis.entrypoints: "websecure"
+      traefik.http.routers.lab-owncloud-ocis.tls: "true"
+      traefik.http.routers.lab-owncloud-ocis.service: "lab-owncloud-ocis"
 
-  tika:
-    image: apache/tika:latest-full
-    restart: always
+      traefik.http.services.lab-owncloud-ocis.loadbalancer.server.port: "9200"
 
-    expose:
-      - "9998"
-
-    networks:
-      - dokploy-network
-
-
-  # ============================================================
-  # COLLABORATION SERVICE
-  # ============================================================
 
   collaboration:
-    image: owncloud/ocis:latest
+    image: owncloud/ocis:8.2.0
     restart: always
 
     depends_on:
@@ -350,15 +66,15 @@ services:
 
       COLLABORATION_WOPI_SRC: https://${WOPISERVER_DOMAIN}
 
-      COLLABORATION_APP_NAME: CollaboraOnline
+      COLLABORATION_APP_NAME: Collabora
       COLLABORATION_APP_PRODUCT: Collabora
       COLLABORATION_APP_ADDR: https://${COLLABORA_DOMAIN}
       COLLABORATION_APP_ICON: https://${COLLABORA_DOMAIN}/favicon.ico
+
       COLLABORATION_APP_INSECURE: "false"
+      COLLABORATION_CS3API_DATAGATEWAY_INSECURE: "false"
 
       COLLABORATION_WOPI_SECRET: ${COLLABORATION_WOPI_SECRET}
-
-      COLLABORATION_CS3API_DATAGATEWAY_INSECURE: "false"
 
       COLLABORATION_LOG_LEVEL: info
 
@@ -372,16 +88,6 @@ services:
     networks:
       - dokploy-network
 
-
-  # ============================================================
-  # COLLABORA CODE
-  #
-  # IMPORTANT:
-  # Pin to 25.04.7.3.1 instead of latest.
-  #
-  # The ownCloud integration example uses this image and
-  # explicitly generates the WOPI proof key before startup.
-  # ============================================================
 
   collabora:
     image: collabora/code:25.04.7.3.1
@@ -404,14 +110,13 @@ services:
         --o:ssl.ssl_verification=false
         --o:ssl.termination=true
         --o:welcome.enable=false
-        --o:net.content_security_policy=frame-ancestors ${OCIS_URL:-https://${OCIS_DOMAIN}}
+        --o:net.frame_ancestors=https://${OCIS_DOMAIN}
 
       username: ${COLLABORA_ADMIN_USERNAME}
       password: ${COLLABORA_ADMIN_PASSWORD}
 
     cap_add:
       - MKNOD
-      - SYS_ADMIN
 
     expose:
       - "9980"
@@ -419,65 +124,30 @@ services:
     healthcheck:
       test:
         - CMD
-        - bash
-        - -c
-        - >-
-          exec 3<>/dev/tcp/127.0.0.1/9980 &&
-          echo -e 'GET /hosting/discovery HTTP/1.1\r\nHost: localhost:9980\r\n\r\n'
-          >&3 &&
-          head -n 1 <&3 | grep '200 OK'
-
-      interval: 30s
-      timeout: 10s
-      start_period: 120s
-      retries: 5
+        - curl
+        - -f
+        - http://localhost:9980/hosting/discovery
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
     networks:
       - dokploy-network
 
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "dokploy-network"
 
-  # ============================================================
-  # UPPY COMPANION
-  # ============================================================
+      traefik.http.routers.lab-owncloud-collabora.rule: "Host(`${COLLABORA_DOMAIN}`)"
+      traefik.http.routers.lab-owncloud-collabora.entrypoints: "websecure"
+      traefik.http.routers.lab-owncloud-collabora.tls: "true"
+      traefik.http.routers.lab-owncloud-collabora.service: "lab-owncloud-collabora"
 
-  companion:
-    image: transloadit/companion:5.8.0
-    restart: always
+      traefik.http.services.lab-owncloud-collabora.loadbalancer.server.port: "9980"
 
-    environment:
-      NODE_ENV: production
-
-      NODE_TLS_REJECT_UNAUTHORIZED: "0"
-
-      COMPANION_DATADIR: /tmp/companion/
-      COMPANION_DOMAIN: ${COMPANION_DOMAIN}
-      COMPANION_PROTOCOL: https
-
-      COMPANION_UPLOAD_URLS: "^https://${OCIS_DOMAIN}/"
-
-      COMPANION_ONEDRIVE_KEY: ${COMPANION_ONEDRIVE_KEY}
-      COMPANION_ONEDRIVE_SECRET: ${COMPANION_ONEDRIVE_SECRET}
-
-      COMPANION_TUS_DEFERRED_UPLOAD_LENGTH: "false"
-
-      COMPANION_CLIENT_ORIGINS: "https://${OCIS_DOMAIN},https://${COMPANION_DOMAIN}"
-
-    volumes:
-      - companion-data:/tmp/companion/
-
-    expose:
-      - "3020"
-
-    networks:
-      - dokploy-network
-
-
-# ============================================================
-# VOLUMES
-# ============================================================
 
 volumes:
-
   ocis-config:
     name: owncloud-ocis-config
 
@@ -487,15 +157,7 @@ volumes:
   ocis-apps:
     name: owncloud-ocis-apps
 
-  companion-data:
-    name: owncloud-companion-data
-
-
-# ============================================================
-# NETWORK
-# ============================================================
 
 networks:
-
   dokploy-network:
     external: true
