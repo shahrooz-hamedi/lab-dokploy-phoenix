@@ -17,8 +17,7 @@ services:
 
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
-      - ./elasticsearch-plugins.yml:/usr/share/elasticsearch/config/elasticsearch-plugins.yml
-
+      
     networks:
       - dokploy-network
 
