@@ -1,0 +1,33 @@
+services:
+
+  collabora:
+    image: collabora/code:25.04.9.3.1
+    restart: always
+
+    environment:
+      - username=${COLLABORA_ADMIN_USERNAME}
+      - password=${COLLABORA_ADMIN_PASSWORD}
+      - aliasgroup1=https://owncloud.phoenix-rtp.com:443
+      - dictionaries=en_US
+
+    cap_add:
+      - MKNOD
+
+    networks:
+      - dokploy-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9980/hosting/discovery"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
