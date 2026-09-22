@@ -57,7 +57,8 @@ services:
     command:
       - --max-allowed-packet=128M
       - --innodb-log-file-size=64M
-
+      - --transaction-isolation=READ-COMMITTED
+      
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-u", "root", "--password=${DB_ROOT_PASSWORD}"]
       interval: 10s
