@@ -8,6 +8,7 @@ services:
       - username=${COLLABORA_ADMIN_USERNAME}
       - password=${COLLABORA_ADMIN_PASSWORD}
       - aliasgroup1=https://owncloud.phoenix-rtp.com:443
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=true
 
     cap_add:
       - MKNOD
@@ -16,7 +17,7 @@ services:
       - dokploy-network
 
     healthcheck:
-      test: ["CMD", "curl", "-kf", "https://localhost:9980/hosting/discovery"]
+      test: ["CMD", "curl", "-f", "http://localhost:9980/hosting/discovery"]
       interval: 30s
       timeout: 10s
       retries: 5
