@@ -199,6 +199,9 @@ services:
       - collaboration
       - server
     environment:
+      OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
+      OCIS_REVA_GATEWAY: ${OCIS_REVA_GATEWAY}
+      COLLABORATION_WOPI_SECRET: ${COLLABORATION_WOPI_SECRET}
       COLLABORATION_GRPC_ADDR: 0.0.0.0:9301
       COLLABORATION_HTTP_ADDR: 0.0.0.0:9300
       MICRO_REGISTRY: nats-js-kv
