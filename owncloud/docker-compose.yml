@@ -1,0 +1,115 @@
+services:
+
+  owncloud:
+    image: owncloud/server:${OWNCLOUD_IMAGE}
+    restart: always
+
+    depends_on:
+      - mariadb
+      - redis
+
+    environment:
+      - OWNCLOUD_DOMAIN=${OWNCLOUD_DOMAIN}
+      - OWNCLOUD_TRUSTED_DOMAINS=${OWNCLOUD_TRUSTED_DOMAINS}
+      - OWNCLOUD_OVERWRITE_CLI_URL=${OWNCLOUD_OVERWRITE_CLI_URL}
+      - OWNCLOUD_OVERWRITE_PROTOCOL=https
+
+      - OWNCLOUD_DB_TYPE=mysql
+      - OWNCLOUD_DB_NAME=owncloud
+      - OWNCLOUD_DB_USERNAME=owncloud
+      - OWNCLOUD_DB_PASSWORD=${DB_PASSWORD}
+      - OWNCLOUD_DB_HOST=mariadb
+
+      - OWNCLOUD_ADMIN_USERNAME=${ADMIN_USERNAME}
+      - OWNCLOUD_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+
+      - OWNCLOUD_MYSQL_UTF8MB4=true
+
+      - OWNCLOUD_REDIS_ENABLED=true
+      - OWNCLOUD_REDIS_HOST=redis
+
+      - OWNCLOUD_CROND_ENABLED=true
+
+    volumes:
+      - owncloud_files:/mnt/data
+
+    networks:
+      - dokploy-network
+
+    healthcheck:
+      test: ["CMD", "/usr/bin/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+  mariadb:
+    image: mariadb:${MARIADB_IMAGE}
+    restart: always
+
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_USER=owncloud
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=owncloud
+      - MARIADB_AUTO_UPGRADE=1
+
+    command:
+      - --max-allowed-packet=128M
+      - --innodb-log-file-size=64M
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-u", "root", "--password=${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+    networks:
+      - dokploy-network
+
+
+  redis:
+    image: redis:${REDIS_IMAGE}
+    restart: always
+
+    command:
+      - --databases
+      - "1"
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    volumes:
+      - redis_data:/data
+
+    networks:
+      - dokploy-network
+
+
+volumes:
+
+  owncloud_files:
+    name: lab-owncloud-classic_owncloud_files
+
+  mariadb_data:
+    name: lab-owncloud-classic_mariadb_data
+
+  redis_data:
+    name: lab-owncloud-classic_redis_data
+
+
+networks:
+
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
