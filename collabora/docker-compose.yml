@@ -8,7 +8,6 @@ services:
       - username=${COLLABORA_ADMIN_USERNAME}
       - password=${COLLABORA_ADMIN_PASSWORD}
       - aliasgroup1=https://owncloud.phoenix-rtp.com:443
-      - dictionaries=en_US
 
     cap_add:
       - MKNOD
