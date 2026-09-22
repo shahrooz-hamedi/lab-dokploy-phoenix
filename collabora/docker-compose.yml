@@ -16,7 +16,7 @@ services:
       - dokploy-network
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9980/hosting/discovery"]
+      test: ["CMD", "curl", "-kf", "https://localhost:9980/hosting/discovery"]
       interval: 30s
       timeout: 10s
       retries: 5
