@@ -15,6 +15,7 @@ services:
       - "ocis init || true; exec ocis server"
 
     environment:
+
       # ----------------------------------------------------------
       # Basic oCIS configuration
       # ----------------------------------------------------------
@@ -36,18 +37,22 @@ services:
       OCIS_JWT_SECRET: ${OCIS_JWT_SECRET}
 
       # ----------------------------------------------------------
-      # Proxy / Reva
+      # Proxy
       # ----------------------------------------------------------
 
       PROXY_TLS: "false"
       PROXY_ENABLE_BASIC_AUTH: "false"
+
+      # ----------------------------------------------------------
+      # Reva gateway
+      # ----------------------------------------------------------
 
       GATEWAY_GRPC_ADDR: 0.0.0.0:9142
 
       OCIS_REVA_GATEWAY: ${OCIS_REVA_GATEWAY}
 
       # ----------------------------------------------------------
-      # Internal NATS / service registry
+      # Internal NATS / registry
       # ----------------------------------------------------------
 
       MICRO_REGISTRY_ADDRESS: 127.0.0.1:9233
@@ -57,23 +62,20 @@ services:
 
       # ----------------------------------------------------------
       # Additional services
-      #
-      # Keep empty for Stage 1.
-      # We will add services deliberately in later stages.
       # ----------------------------------------------------------
 
       START_ADDITIONAL_SERVICES: ${START_ADDITIONAL_SERVICES}
 
       # ----------------------------------------------------------
       # SMTP
-      #
-      # Disabled for Stage 1.
       # ----------------------------------------------------------
 
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_SENDER: ${SMTP_SENDER}
       SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_AUTHENTICATION: ${SMTP_AUTHENTICATION}
       SMTP_INSECURE: ${SMTP_INSECURE}
 
     volumes:
