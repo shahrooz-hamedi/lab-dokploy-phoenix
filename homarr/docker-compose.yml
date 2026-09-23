@@ -21,6 +21,24 @@ services:
       - dokploy-network
       - homarr-docker
 
+    labels:
+      - traefik.docker.network=dokploy-network
+
+      - traefik.http.routers.lab-homarr-bgm0y8-20-web.rule=Host(`dash.phoenix-rtp.com`)
+      - traefik.http.routers.lab-homarr-bgm0y8-20-web.entrypoints=web
+      - traefik.http.services.lab-homarr-bgm0y8-20-web.loadbalancer.server.port=7575
+      - traefik.http.routers.lab-homarr-bgm0y8-20-web.service=lab-homarr-bgm0y8-20-web
+      - traefik.http.routers.lab-homarr-bgm0y8-20-web.middlewares=redirect-to-https@file
+
+      - traefik.http.routers.lab-homarr-bgm0y8-20-websecure.rule=Host(`dash.phoenix-rtp.com`)
+      - traefik.http.routers.lab-homarr-bgm0y8-20-websecure.entrypoints=websecure
+      - traefik.http.services.lab-homarr-bgm0y8-20-websecure.loadbalancer.server.port=7575
+      - traefik.http.routers.lab-homarr-bgm0y8-20-websecure.service=lab-homarr-bgm0y8-20-websecure
+      - traefik.http.routers.lab-homarr-bgm0y8-20-websecure.tls=true
+
+      - traefik.enable=true
+
+
   homarr-docker-proxy:
     image: lscr.io/linuxserver/socket-proxy:3.4.4
     restart: unless-stopped
