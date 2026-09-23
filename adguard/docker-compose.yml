@@ -17,7 +17,7 @@ services:
 
     networks:
       dokploy-network:
-        ipv4_address: 10.0.1.20
+        ipv4_address: 10.0.1.150
 
     labels:
       - traefik.http.routers.lab-adguard-4ynnux-7-web.rule=Host(`adguard.phoenix-rtp.com`)
