@@ -1,0 +1,38 @@
+services:
+
+  jellyfin:
+    image: jellyfin/jellyfin:12.1
+    restart: unless-stopped
+
+    environment:
+      TZ: Asia/Tehran
+
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - /mnt/nas/Media:/media:ro
+
+    expose:
+      - "8096"
+
+    networks:
+      - dokploy-network
+      - default
+
+volumes:
+
+  jellyfin-config:
+    name: lab-jellyfin-config
+
+  jellyfin-cache:
+    name: lab-jellyfin-cache
+
+networks:
+
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
