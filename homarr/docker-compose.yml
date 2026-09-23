@@ -1,0 +1,34 @@
+services:
+
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:v1.77.2
+    restart: unless-stopped
+
+    environment:
+      TZ: Asia/Tehran
+      SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}
+
+    volumes:
+      - homarr-appdata:/appdata
+
+    expose:
+      - "7575"
+
+    networks:
+      - dokploy-network
+      - default
+
+volumes:
+
+  homarr-appdata:
+    name: lab-homarr-appdata
+
+networks:
+
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
