@@ -1,4 +1,5 @@
 services:
+
   adguardhome:
     image: adguard/adguardhome:latest
     restart: unless-stopped
@@ -19,6 +20,18 @@ services:
         ipv4_address: 10.0.1.20
 
     labels:
+      - traefik.http.routers.lab-adguard-4ynnux-7-web.rule=Host(`adguard.phoenix-rtp.com`)
+      - traefik.http.routers.lab-adguard-4ynnux-7-web.entrypoints=web
+      - traefik.http.services.lab-adguard-4ynnux-7-web.loadbalancer.server.port=80
+      - traefik.http.routers.lab-adguard-4ynnux-7-web.service=lab-adguard-4ynnux-7-web
+      - traefik.http.routers.lab-adguard-4ynnux-7-web.middlewares=redirect-to-https@file
+
+      - traefik.http.routers.lab-adguard-4ynnux-7-websecure.rule=Host(`adguard.phoenix-rtp.com`)
+      - traefik.http.routers.lab-adguard-4ynnux-7-websecure.entrypoints=websecure
+      - traefik.http.services.lab-adguard-4ynnux-7-websecure.loadbalancer.server.port=80
+      - traefik.http.routers.lab-adguard-4ynnux-7-websecure.service=lab-adguard-4ynnux-7-websecure
+      - traefik.http.routers.lab-adguard-4ynnux-7-websecure.tls=true
+
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
 
@@ -35,14 +48,22 @@ services:
       - traefik.http.services.adguard.loadbalancer.server.scheme=https
       - traefik.http.services.adguard.loadbalancer.serverstransport=adguard-tls@file
 
+
 volumes:
+
   adguardhome-work:
+    name: lab-adguard-4ynnux_adguardhome-work
+
   adguardhome-conf:
+    name: lab-adguard-4ynnux_adguardhome-conf
+
 
 networks:
+
   default:
     name: dokploy-network
     external: true
+
   dokploy-network:
     name: dokploy-network
     external: true
