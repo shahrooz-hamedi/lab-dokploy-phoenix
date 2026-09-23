@@ -1,0 +1,33 @@
+services:
+  aria2:
+    image: hurlenko/aria2-ariang:latest
+    restart: unless-stopped
+
+    environment:
+      PUID: "0"
+      PGID: "0"
+      RPC_SECRET: ${RPC_SECRET}
+
+    volumes:
+      - aria2-config:/aria2/conf
+      - /mnt/nas/Media/Download:/downloads/media
+      - /mnt/nas/Storage/Download:/downloads/storage
+
+    expose:
+      - "8080"
+
+    networks:
+      - dokploy-network
+
+volumes:
+  aria2-config:
+    name: lab-aria2-config
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
