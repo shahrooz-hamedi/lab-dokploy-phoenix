@@ -1,0 +1,66 @@
+services:
+
+  # ============================================================
+  # CODE-SERVER
+  # ============================================================
+  #
+  # Browser-based VS Code development environment.
+  #
+  # The entire /home/coder directory is persistent, so:
+  #   - repositories survive redeployments
+  #   - VS Code settings survive redeployments
+  #   - extensions survive redeployments
+  #   - Git/SSH configuration survives redeployments
+  #
+  # Repositories are cloned from Git providers into:
+  #
+  #   /home/coder/workspace/
+  #
+  # No host repository mounts and no Docker socket.
+  #
+  code-server:
+    image: ghcr.io/coder/code-server:4.105.0
+    restart: unless-stopped
+
+    environment:
+      TZ: ${TZ}
+
+      # code-server authentication
+      HASHED_PASSWORD: ${HASHED_PASSWORD}
+
+      # Open the workspace directory when VS Code starts.
+      DEFAULT_WORKSPACE: /home/coder/workspace
+
+    volumes:
+      - code-server-home:/home/coder
+
+    expose:
+      - "8080"
+
+    networks:
+      - dokploy-network
+
+
+# ============================================================
+# PERSISTENT DATA
+# ============================================================
+
+volumes:
+
+  code-server-home:
+    name: lab-code-server-home
+
+
+# ============================================================
+# EXTERNAL DOKPLOY NETWORK
+# ============================================================
+
+networks:
+
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
