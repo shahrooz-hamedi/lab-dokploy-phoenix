@@ -8,6 +8,9 @@ services:
       TZ: Asia/Tehran
       SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY}
 
+      DOCKER_HOSTNAMES: homarr-docker-proxy
+      DOCKER_PORTS: "2375"
+
     volumes:
       - homarr-appdata:/appdata
 
@@ -16,19 +19,72 @@ services:
 
     networks:
       - dokploy-network
-      - default
+      - homarr-docker
+
+  homarr-docker-proxy:
+    image: lscr.io/linuxserver/socket-proxy:3.4.4
+    restart: unless-stopped
+
+    environment:
+      CONTAINERS: "1"
+      ALLOW_LOGS: "1"
+
+      POST: "0"
+
+      AUTH: "0"
+      BUILD: "0"
+      COMMIT: "0"
+      CONFIGS: "0"
+      DISTRIBUTION: "0"
+      EXEC: "0"
+      IMAGES: "0"
+      NETWORKS: "0"
+      NODES: "0"
+      PLUGINS: "0"
+      SECRETS: "0"
+      SERVICES: "0"
+      SWARM: "0"
+      SYSTEM: "0"
+      TASKS: "0"
+      VOLUMES: "0"
+
+      ALLOW_ARCHIVE: "0"
+      ALLOW_CHANGES: "0"
+      ALLOW_EXPORT: "0"
+      ALLOW_PAUSE: "0"
+      ALLOW_START: "0"
+      ALLOW_STOP: "0"
+      ALLOW_RESTARTS: "0"
+      ALLOW_TOP: "0"
+      ALLOW_UNPAUSE: "0"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    read_only: true
+
+    tmpfs:
+      - /run
+
+    expose:
+      - "2375"
+
+    networks:
+      - homarr-docker
+
 
 volumes:
 
   homarr-appdata:
     name: lab-homarr-appdata
 
-networks:
 
-  default:
-    name: dokploy-network
-    external: true
+networks:
 
   dokploy-network:
     name: dokploy-network
     external: true
+
+  homarr-docker:
+    name: lab-homarr-docker
+    internal: true
