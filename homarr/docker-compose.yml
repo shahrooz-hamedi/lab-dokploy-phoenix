@@ -81,6 +81,10 @@ volumes:
 
 networks:
 
+  default:
+    name: dokploy-network
+    external: true
+
   dokploy-network:
     name: dokploy-network
     external: true
