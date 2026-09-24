@@ -9,6 +9,7 @@ services:
       LOG_LEVEL: info
       LOG_STYLE: json
       BIFROST_ENCRYPTION_KEY: ${BIFROST_ENCRYPTION_KEY}
+      BIFROST_SETUP_TOKEN: ${BIFROST_SETUP_TOKEN}
 
     volumes:
       - bifrost-data:/app/data
@@ -17,6 +18,10 @@ services:
       - dokploy-network
 
 networks:
+  default:
+    external: true
+    name: dokploy-network
+
   dokploy-network:
     external: true
 
