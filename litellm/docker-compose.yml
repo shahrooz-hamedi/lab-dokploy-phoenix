@@ -48,7 +48,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - wget --no-verbose --tries=1 --spider http://127.0.0.1:4000/health/readiness || exit 1
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/readiness')"
       interval: 30s
       timeout: 10s
       retries: 5
