@@ -1,0 +1,95 @@
+services:
+
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.102.1
+    restart: unless-stopped
+
+    environment:
+      # ------------------------------------------------------------
+      # LiteLLM core
+      # ------------------------------------------------------------
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+
+      # ------------------------------------------------------------
+      # Database
+      # ------------------------------------------------------------
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@litellm-postgres:5432/${POSTGRES_DB}
+
+      # ------------------------------------------------------------
+      # Model management
+      # ------------------------------------------------------------
+      # Store models added through the Admin UI in PostgreSQL.
+      STORE_MODEL_IN_DB: "True"
+
+      # ------------------------------------------------------------
+      # Runtime
+      # ------------------------------------------------------------
+      LITELLM_LOG: "INFO"
+
+    command:
+      - "--port"
+      - "4000"
+
+    expose:
+      - "4000"
+
+    volumes:
+      - litellm_data:/var/lib/litellm
+
+    depends_on:
+      litellm-postgres:
+        condition: service_healthy
+
+    networks:
+      - default
+      - dokploy-network
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --no-verbose --tries=1 --spider http://127.0.0.1:4000/health/readiness || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+
+  litellm-postgres:
+    image: postgres:16
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - litellm_postgres_data:/var/lib/postgresql/data
+
+    networks:
+      - default
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+volumes:
+  litellm_data:
+  litellm_postgres_data:
+
+
+networks:
+  default:
+    external: true
+    name: dokploy-network
+
+  dokploy-network:
+    external: true
+    name: dokploy-network
