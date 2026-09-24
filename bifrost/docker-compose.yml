@@ -8,25 +8,18 @@ services:
       APP_PORT: 8080
       LOG_LEVEL: info
       LOG_STYLE: json
-
       BIFROST_ENCRYPTION_KEY: ${BIFROST_ENCRYPTION_KEY}
-      BIFROST_ADMIN_USERNAME: ${BIFROST_ADMIN_USERNAME}
-      BIFROST_ADMIN_PASSWORD: ${BIFROST_ADMIN_PASSWORD}
 
     volumes:
       - bifrost-data:/app/data
 
     networks:
-      - default
       - dokploy-network
 
 networks:
-  default:
-    external: true
-    name: dokploy-network
-
   dokploy-network:
     external: true
 
 volumes:
   bifrost-data:
+    driver: local
