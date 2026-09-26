@@ -21,7 +21,7 @@ services:
       POSTGRES_HOST: "firecrawl-postgres"
       POSTGRES_PORT: "5432"
 
-      NUQ_BACKEND: "postgres"
+      NUQ_BACKEND: "pg"
       NUQ_RABBITMQ_URL: "amqp://firecrawl-rabbitmq:5672"
 
       NUM_WORKERS_PER_QUEUE: "4"
