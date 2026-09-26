@@ -1,0 +1,179 @@
+services:
+  firecrawl-api:
+    image: ghcr.io/firecrawl/firecrawl:2.11.334-production
+
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3002"
+      INTERNAL_PORT: "3002"
+
+      ENV: "local"
+      USE_DB_AUTHENTICATION: "false"
+
+      REDIS_URL: "redis://firecrawl-redis:6379"
+      REDIS_RATE_LIMIT_URL: "redis://firecrawl-redis:6379"
+
+      PLAYWRIGHT_MICROSERVICE_URL: "http://firecrawl-playwright:3000/scrape"
+
+      POSTGRES_USER: "firecrawl"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "firecrawl"
+      POSTGRES_HOST: "firecrawl-postgres"
+      POSTGRES_PORT: "5432"
+
+      NUQ_BACKEND: "postgres"
+      NUQ_RABBITMQ_URL: "amqp://firecrawl-rabbitmq:5672"
+
+      NUM_WORKERS_PER_QUEUE: "4"
+      CRAWL_CONCURRENT_REQUESTS: "5"
+      MAX_CONCURRENT_JOBS: "3"
+      BROWSER_POOL_SIZE: "3"
+
+      BULL_AUTH_KEY: "${BULL_AUTH_KEY}"
+
+      LOGGING_LEVEL: "info"
+
+    depends_on:
+      firecrawl-redis:
+        condition: service_started
+
+      firecrawl-playwright:
+        condition: service_started
+
+      firecrawl-rabbitmq:
+        condition: service_healthy
+
+      firecrawl-postgres:
+        condition: service_started
+
+    networks:
+      - default
+
+    volumes:
+      - firecrawl-api-data:/app/data
+
+    restart: unless-stopped
+
+    security_opt:
+      - no-new-privileges:true
+
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+    cpus: 2.0
+    mem_limit: 4G
+
+
+  firecrawl-playwright:
+    image: ghcr.io/firecrawl/playwright-service:latest
+
+    environment:
+      PORT: "3000"
+
+      MAX_CONCURRENT_PAGES: "5"
+
+      BLOCK_MEDIA: "false"
+
+      ALLOW_LOCAL_WEBHOOKS: "false"
+
+    networks:
+      - default
+
+    restart: unless-stopped
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    tmpfs:
+      - /tmp/.cache:noexec,nosuid,size=1g
+
+    cpus: 2.0
+    mem_limit: 4G
+
+
+  firecrawl-redis:
+    image: redis:7-alpine
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --bind
+      - 0.0.0.0
+
+    networks:
+      - default
+
+    volumes:
+      - firecrawl-redis-data:/data
+
+    restart: unless-stopped
+
+
+  firecrawl-rabbitmq:
+    image: rabbitmq:3-management
+
+    networks:
+      - default
+
+    volumes:
+      - firecrawl-rabbitmq-data:/var/lib/rabbitmq
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        - CMD
+        - rabbitmq-diagnostics
+        - -q
+        - check_running
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  firecrawl-postgres:
+    image: ghcr.io/firecrawl/nuq-postgres:latest
+
+    environment:
+      POSTGRES_USER: "firecrawl"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "firecrawl"
+
+    networks:
+      - default
+
+    volumes:
+      - firecrawl-postgres-data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+
+volumes:
+  firecrawl-api-data:
+    name: firecrawl-api-data
+
+  firecrawl-redis-data:
+    name: firecrawl-redis-data
+
+  firecrawl-rabbitmq-data:
+    name: firecrawl-rabbitmq-data
+
+  firecrawl-postgres-data:
+    name: firecrawl-postgres-data
+
+
+networks:
+  default:
+    external: true
+    name: dokploy-network
+
+  dokploy-network:
+    external: true
+    name: dokploy-network
