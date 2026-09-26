@@ -15,11 +15,11 @@ services:
 
       PLAYWRIGHT_MICROSERVICE_URL: "http://firecrawl-playwright:3000/scrape"
 
-      POSTGRES_USER: "firecrawl"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-      POSTGRES_DB: "firecrawl"
       POSTGRES_HOST: "firecrawl-postgres"
       POSTGRES_PORT: "5432"
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "firecrawl"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
 
       NUQ_BACKEND: "pg"
       NUQ_RABBITMQ_URL: "amqp://firecrawl-rabbitmq:5672"
@@ -34,16 +34,13 @@ services:
       LOGGING_LEVEL: "info"
 
     depends_on:
+      firecrawl-postgres:
+        condition: service_started
       firecrawl-redis:
         condition: service_started
-
-      firecrawl-playwright:
-        condition: service_started
-
       firecrawl-rabbitmq:
         condition: service_healthy
-
-      firecrawl-postgres:
+      firecrawl-playwright:
         condition: service_started
 
     networks:
@@ -71,11 +68,8 @@ services:
 
     environment:
       PORT: "3000"
-
       MAX_CONCURRENT_PAGES: "5"
-
       BLOCK_MEDIA: "false"
-
       ALLOW_LOCAL_WEBHOOKS: "false"
 
     networks:
@@ -104,7 +98,7 @@ services:
       - --appendonly
       - "yes"
       - --bind
-      - 0.0.0.0
+      - "0.0.0.0"
 
     networks:
       - default
@@ -144,7 +138,8 @@ services:
     environment:
       POSTGRES_USER: "firecrawl"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-      POSTGRES_DB: "firecrawl"
+      POSTGRES_DB: "postgres"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
 
     networks:
       - default
