@@ -13,6 +13,7 @@ RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
 RUN python - <<'PY'
 from pathlib import Path
 
+# Fix PGVector dimensions in the Mem0 server configuration.
 p = Path("/app/main.py")
 s = p.read_text()
 
@@ -24,7 +25,34 @@ new = '''            "collection_name": POSTGRES_COLLECTION_NAME,
         },'''
 
 if old not in s:
-    raise SystemExit("Expected pgvector configuration block not found")
+    raise SystemExit("Expected pgvector configuration block not found in main.py")
+
+p.write_text(s.replace(old, new, 1))
+
+# Fix psycopg3 pool initialization for Docker.
+p = Path("/usr/local/lib/python3.12/site-packages/mem0/vector_stores/pgvector.py")
+
+s = p.read_text()
+
+old = '''                # open=False avoids blocking when DB DNS is not yet resolvable (e.g. Docker startup)
+                self.connection_pool = ConnectionPool(
+                    conninfo=connection_string,
+                    min_size=minconn,
+                    max_size=maxconn,
+                    open=False,
+                )
+                self.connection_pool.open(wait=False)'''
+
+new = '''                self.connection_pool = ConnectionPool(
+                    conninfo=connection_string,
+                    min_size=minconn,
+                    max_size=maxconn,
+                    open=False,
+                )
+                self.connection_pool.open(wait=True)'''
+
+if old not in s:
+    raise SystemExit("Expected psycopg3 ConnectionPool block not found")
 
 p.write_text(s.replace(old, new, 1))
 PY
