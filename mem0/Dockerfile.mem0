@@ -1,0 +1,27 @@
+FROM python:3.12-slim
+
+ARG MEM0_REF=94c3fe9
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
+    && cd /tmp/mem0 \
+    && git fetch --depth 1 origin ${MEM0_REF} \
+    && git checkout ${MEM0_REF} \
+    && sed -i 's/mem0ai>=0.1.48/mem0ai==2.2.1/' server/requirements.txt \
+    && sed -i 's/"collection_name": POSTGRES_COLLECTION_NAME,/"collection_name": POSTGRES_COLLECTION_NAME,\n            "embedding_model_dims": int(os.environ.get("MEM0_EMBEDDING_MODEL_DIMS", "1536")),/' server/main.py \
+    && cp -a server/. /app/
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]

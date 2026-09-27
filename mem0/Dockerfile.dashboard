@@ -1,0 +1,70 @@
+FROM node:20-alpine AS base
+
+RUN apk add --no-cache libc6-compat git
+
+WORKDIR /app
+
+ARG MEM0_REF=94c3fe9
+
+
+FROM base AS source
+
+RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
+    && cd /tmp/mem0 \
+    && git fetch --depth 1 origin ${MEM0_REF} \
+    && git checkout ${MEM0_REF} \
+    && cp -a server/dashboard/. /app/
+
+
+FROM base AS deps
+
+COPY --from=source /app/package.json /app/package.json
+COPY --from=source /app/yarn.lock* /app/package-lock.json* /app/pnpm-lock.yaml* ./
+
+RUN if [ -f yarn.lock ]; then \
+      yarn --frozen-lockfile --network-timeout 600000; \
+    elif [ -f package-lock.json ]; then \
+      npm ci; \
+    elif [ -f pnpm-lock.yaml ]; then \
+      corepack enable pnpm && pnpm i --frozen-lockfile; \
+    else \
+      npm install; \
+    fi
+
+
+FROM base AS builder
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=source /app/ .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_INSTANCE_NAME=NEXT_PUBLIC_INSTANCE_NAME
+
+RUN npm run build
+
+
+FROM base AS runner
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/entrypoint.sh /home/nextjs/entrypoint.sh
+
+RUN chmod +x /home/nextjs/entrypoint.sh
+
+USER nextjs
+
+EXPOSE 3000
+
+ENTRYPOINT ["/home/nextjs/entrypoint.sh"]
+
+CMD ["node", "server.js"]
