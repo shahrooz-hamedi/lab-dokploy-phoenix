@@ -5,7 +5,6 @@ RUN apk add --no-cache libc6-compat git
 
 WORKDIR /app
 
-# Use current official Mem0 dashboard source.
 FROM base AS source
 
 RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
