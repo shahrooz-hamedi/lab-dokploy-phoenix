@@ -1,0 +1,91 @@
+services:
+
+  mem0:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: ""
+      DASHBOARD_URL: "https://memory.phoenix-rtp.com"
+      APP_DB_NAME: "mem0_app"
+      JWT_SECRET: "${JWT_SECRET}"
+      AUTH_DISABLED: "false"
+      MEM0_TELEMETRY: "${MEM0_TELEMETRY:-false}"
+    expose:
+      - "8000"
+    volumes:
+      - mem0-history:/app/history
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dokploy-network
+    command:
+      - sh
+      - -c
+      - |
+        alembic upgrade head &&
+        uvicorn main:app --host 0.0.0.0 --port 8000
+
+  mem0-dashboard:
+    build:
+      context: .
+      dockerfile: server/dashboard/Dockerfile
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: "https://memory.phoenix-rtp.com"
+      API_INTERNAL_URL: "http://mem0:8000"
+      NEXT_PUBLIC_INSTANCE_NAME: "Phoenix Lab Memory"
+    expose:
+      - "3000"
+    depends_on:
+      mem0:
+        condition: service_started
+    networks:
+      - dokploy-network
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    shm_size: "128mb"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB:-postgres}"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -q -d ${POSTGRES_DB:-postgres} -U ${POSTGRES_USER}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+      - ./server/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    networks:
+      - dokploy-network
+
+volumes:
+
+  postgres-db:
+    name: mem0-postgres-db
+
+  mem0-history:
+    name: mem0-history
+
+networks:
+
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
