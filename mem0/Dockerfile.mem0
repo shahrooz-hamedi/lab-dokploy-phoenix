@@ -23,6 +23,7 @@ old = '''            "collection_name": POSTGRES_COLLECTION_NAME,
 
 new = '''            "collection_name": POSTGRES_COLLECTION_NAME,
             "embedding_model_dims": int(os.environ.get("MEM0_EMBEDDING_MODEL_DIMS", "1536")),
+            "hnsw": False,
         },'''
 
 if old not in s:
