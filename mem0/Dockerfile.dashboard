@@ -1,24 +1,20 @@
+cat > Dockerfile.dashboard <<'EOF'
 FROM node:20-alpine AS base
 
 RUN apk add --no-cache libc6-compat git
 
 WORKDIR /app
 
-ARG MEM0_REF=94c3fe9
-
-
+# Use current official Mem0 dashboard source.
 FROM base AS source
 
 RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
-    && cd /tmp/mem0 \
-    && git fetch --depth 1 origin ${MEM0_REF} \
-    && git checkout ${MEM0_REF} \
-    && cp -a server/dashboard/. /app/
-
+    && cp -a /tmp/mem0/server/dashboard/. /app/ \
+    && rm -rf /tmp/mem0
 
 FROM base AS deps
 
-COPY --from=source /app/package.json /app/package.json
+COPY --from=source /app/package.json ./
 COPY --from=source /app/yarn.lock* /app/package-lock.json* /app/pnpm-lock.yaml* ./
 
 RUN if [ -f yarn.lock ]; then \
@@ -31,7 +27,6 @@ RUN if [ -f yarn.lock ]; then \
       npm install; \
     fi
 
-
 FROM base AS builder
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -43,8 +38,9 @@ ENV NEXT_PUBLIC_INSTANCE_NAME=NEXT_PUBLIC_INSTANCE_NAME
 
 RUN npm run build
 
-
 FROM base AS runner
+
+WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -68,3 +64,4 @@ EXPOSE 3000
 ENTRYPOINT ["/home/nextjs/entrypoint.sh"]
 
 CMD ["node", "server.js"]
+EOF
