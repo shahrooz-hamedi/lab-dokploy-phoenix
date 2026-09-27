@@ -10,19 +10,18 @@ RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
     && cp -a /tmp/mem0/server/dashboard/. /app/ \
     && rm -rf /tmp/mem0
 
-FROM base AS builder
+FROM base AS deps
 
-RUN corepack enable \
-
-    && corepack prepare pnpm@10.34.2 --activate
-
-COPY --from=deps /app/ ./
+COPY --from=source /app/ ./
 
 RUN corepack enable \
     && corepack prepare pnpm@10.34.2 --activate \
     && pnpm install --no-frozen-lockfile
 
 FROM base AS builder
+
+RUN corepack enable \
+    && corepack prepare pnpm@10.34.2 --activate
 
 COPY --from=deps /app/ ./
 
