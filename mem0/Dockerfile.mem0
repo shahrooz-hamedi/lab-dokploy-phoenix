@@ -1,3 +1,17 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
+    && cp -a /tmp/mem0/server/. /app/ \
+    && rm -rf /tmp/mem0
+
+RUN pip install --no-cache-dir -r requirements.txt
+
 RUN python - <<'PY'
 from pathlib import Path
 
@@ -15,32 +29,12 @@ if old not in s:
     raise SystemExit("Expected pgvector configuration block not found")
 
 p.write_text(s.replace(old, new, 1))
-
-p = Path("/app/mem0/vector_stores/pgvector.py")
-s = p.read_text()
-
-old = '''            connection_string = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"'''
-
-new = '''            from urllib.parse import quote
-            connection_string = (
-                f"postgresql://{quote(str(user), safe='')}:"
-                f"{quote(str(password), safe='')}@"
-                f"{host}:{port}/{dbname}"
-            )'''
-
-if old not in s:
-    raise SystemExit("Expected PostgreSQL connection string construction not found")
-
-s = s.replace(old, new, 1)
-
-old = '''                self.connection_pool.open(wait=True)'''
-
-new = '''                self.connection_pool.open(wait=False)'''
-
-if old not in s:
-    raise SystemExit("Expected wait=True patch not found")
-
-s = s.replace(old, new, 1)
-
-p.write_text(s)
 PY
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"]
