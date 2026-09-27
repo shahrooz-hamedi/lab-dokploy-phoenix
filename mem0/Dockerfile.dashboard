@@ -10,9 +10,13 @@ RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
     && cp -a /tmp/mem0/server/dashboard/. /app/ \
     && rm -rf /tmp/mem0
 
-FROM base AS deps
+FROM base AS builder
 
-COPY --from=source /app/ ./
+RUN corepack enable \
+
+    && corepack prepare pnpm@10.34.2 --activate
+
+COPY --from=deps /app/ ./
 
 RUN corepack enable \
     && corepack prepare pnpm@10.34.2 --activate \
