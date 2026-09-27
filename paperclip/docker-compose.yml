@@ -1,0 +1,30 @@
+services:
+  paperclip:
+    image: ghcr.io/paperclipai/paperclip:2026.916.1
+    restart: unless-stopped
+
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3100"
+      PAPERCLIP_HOME: "/paperclip"
+
+      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
+      PAPERCLIP_PUBLIC_URL: "https://paperclip.phoenix-rtp.com"
+
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
+      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "${PAPERCLIP_TOOL_ACTION_SIGNING_SECRET}"
+
+    volumes:
+      - paperclip-data:/paperclip
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
+  dokploy-network:
+    name: dokploy-network
+    external: true
+
+volumes:
+  paperclip-data:
