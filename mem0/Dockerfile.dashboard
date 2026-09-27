@@ -12,29 +12,21 @@ RUN git clone --depth 1 https://github.com/mem0ai/mem0.git /tmp/mem0 \
 
 FROM base AS deps
 
-COPY --from=source /app/package.json ./
-COPY --from=source /app/yarn.lock* /app/package-lock.json* /app/pnpm-lock.yaml* ./
+COPY --from=source /app/ ./
 
-RUN if [ -f yarn.lock ]; then \
-      yarn --frozen-lockfile --network-timeout 600000; \
-    elif [ -f package-lock.json ]; then \
-      npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then \
-      corepack enable pnpm && pnpm install --frozen-lockfile; \
-    else \
-      npm install; \
-    fi
+RUN corepack enable \
+    && corepack prepare pnpm@10.34.2 --activate \
+    && pnpm install --no-frozen-lockfile
 
 FROM base AS builder
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=source /app/ .
+COPY --from=deps /app/ ./
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_INSTANCE_NAME=NEXT_PUBLIC_INSTANCE_NAME
 
-RUN npm run build
+RUN pnpm build
 
 FROM base AS runner
 
