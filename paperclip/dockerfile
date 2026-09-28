@@ -7,7 +7,10 @@ RUN apt-get update \
         python3-pip \
         python3.13-venv \
     && rm -rf /var/lib/apt/lists/* \
-    && python3 -m pip install --break-system-packages hermes-agent \
+    && python3 -m venv /opt/hermes \
+    && /opt/hermes/bin/pip install --upgrade pip \
+    && /opt/hermes/bin/pip install hermes-agent \
+    && ln -s /opt/hermes/bin/hermes /usr/local/bin/hermes \
     && hermes --version
 
 USER node
