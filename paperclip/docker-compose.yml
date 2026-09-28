@@ -1,6 +1,8 @@
 services:
   paperclip:
-    image: ghcr.io/paperclipai/paperclip:2026.916.1
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
 
     environment:
@@ -22,6 +24,7 @@ networks:
   default:
     name: dokploy-network
     external: true
+
   dokploy-network:
     name: dokploy-network
     external: true
