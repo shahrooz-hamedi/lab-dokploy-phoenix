@@ -19,6 +19,7 @@ services:
 
     volumes:
       - paperclip-data:/paperclip
+      - paperclip-wiki:/paperclip-wiki
 
 networks:
   default:
@@ -31,3 +32,4 @@ networks:
 
 volumes:
   paperclip-data:
+  paperclip-wiki:
