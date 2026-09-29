@@ -17,6 +17,31 @@ services:
       BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
       PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "${PAPERCLIP_TOOL_ACTION_SIGNING_SECRET}"
 
+      PAPERCLIP_PI_PROVIDERS: >-
+        {
+          "bifrost": {
+            "baseUrl": "https://bifrost.phoenix-rtp.com/v1",
+            "apiKey": "{env:BIFROST_API_KEY}",
+            "api": "openai-completions",
+            "models": [
+              {
+                "id": "openrouter/hermes-main-free",
+                "name": "Hermes Main Free",
+                "reasoning": true,
+                "input": ["text"],
+                "cost": {
+                  "input": 0,
+                  "output": 0,
+                  "cacheRead": 0,
+                  "cacheWrite": 0
+                },
+                "contextWindow": 128000,
+                "maxTokens": 16384
+              }
+            ]
+          }
+        }
+
     volumes:
       - paperclip-data:/paperclip
       - paperclip-wiki:/paperclip-wiki
