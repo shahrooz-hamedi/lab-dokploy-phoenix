@@ -197,20 +197,12 @@ RUN bash -lc \
     && /usr/local/bin/agent --version
 
 # ---------------------------------------------------------------------------
+
 # Persistent runtime directories
+
 # ---------------------------------------------------------------------------
-#
-# /paperclip is backed by the paperclip-data Docker volume.
-#
-# Paperclip itself uses:
-#
-#   PAPERCLIP_HOME=/paperclip
-#
-# CLI-specific homes are kept under /paperclip/cli-home.
-#
 
 RUN mkdir -p \
-      /paperclip/cli-home \
       /paperclip/cli-home/.config \
       /paperclip/cli-home/.cache \
       /paperclip/cli-home/.hermes \
@@ -223,10 +215,20 @@ RUN mkdir -p \
       /paperclip/cli-home/.gemini \
       /paperclip/cli-home/.opencode \
       /paperclip/wiki \
-    && chown -R node:node /paperclip/cli-home /paperclip/wiki
-
+    && chown node:node /paperclip/cli-home \
+    && chown node:node /paperclip/wiki \
+    && chown node:node /paperclip/cli-home/.config \
+    && chown node:node /paperclip/cli-home/.cache \
+    && chown node:node /paperclip/cli-home/.hermes \
+    && chown node:node /paperclip/cli-home/.pi \
+    && chown node:node /paperclip/cli-home/.kimi-code \
+    && chown node:node /paperclip/cli-home/.grok \
+    && chown node:node /paperclip/cli-home/.cursor \
+    && chown node:node /paperclip/cli-home/.codex \
+    && chown node:node /paperclip/cli-home/.claude \
+    && chown node:node /paperclip/cli-home/.gemini \
+    && chown node:node /paperclip/cli-home/.opencode
 # ---------------------------------------------------------------------------
 # Final runtime user
 # ---------------------------------------------------------------------------
-
 USER node
