@@ -1,97 +1,62 @@
 services:
+  paperclip-postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - paperclip-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - dokploy-network
+
   paperclip:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        PAPERCLIP_IMAGE: ${PAPERCLIP_IMAGE}
+    image: paperclip-phoenix:2026.916.1
     restart: unless-stopped
     depends_on:
-      postgres:
+      paperclip-postgres:
         condition: service_healthy
-
     env_file:
       - .env
-
     environment:
-      # Paperclip server
-      PORT: "3100"
-      PAPERCLIP_HOME: "/paperclip"
+      DATABASE_URL: ${DATABASE_URL}
 
-      # Authenticated public deployment behind Traefik.
-      # In Docker, loopback would bind only inside this container and Traefik
-      # could not reach it, so use the container's network interface.
-      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
-      PAPERCLIP_DEPLOYMENT_EXPOSURE: "public"
-      PAPERCLIP_BIND: "custom"
-      PAPERCLIP_BIND_HOST: "0.0.0.0"
-      PAPERCLIP_AUTH_BASE_URL_MODE: "explicit"
-      PAPERCLIP_PUBLIC_URL: "https://paperclip.phoenix-rtp.com"
-      PAPERCLIP_AUTH_PUBLIC_BASE_URL: "https://paperclip.phoenix-rtp.com"
-      PAPERCLIP_ALLOWED_HOSTNAMES: "paperclip.phoenix-rtp.com"
-      TRUST_PROXY: "1"
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      XAI_API_KEY: ${XAI_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      HF_TOKEN: ${HF_TOKEN}
+      ZAI_API_KEY: ${ZAI_API_KEY}
+      KIMI_MODEL_API_KEY: ${KIMI_MODEL_API_KEY}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+      KILO_API_KEY: ${KILO_API_KEY}
+      CURSOR_API_KEY: ${CURSOR_API_KEY}
 
-      # External PostgreSQL 17.
-      DATABASE_URL: "postgresql://paperclip:${POSTGRES_PASSWORD}@postgres:5432/paperclip"
-      DATABASE_MIGRATION_URL: "postgresql://paperclip:${POSTGRES_PASSWORD}@postgres:5432/paperclip"
+      PAPERCLIP_OPENCODE_PROVIDERS: >-
+        {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}"},"models":{"${BIFROST_SELECTED_MODEL}":{}}}}
 
-      # Secrets.
-      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET}"
-      PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: "${PAPERCLIP_TOOL_ACTION_SIGNING_SECRET}"
-      PAPERCLIP_SECRETS_MASTER_KEY: "${PAPERCLIP_SECRETS_MASTER_KEY}"
-      PAPERCLIP_SECRETS_STRICT_MODE: "true"
+      PAPERCLIP_PI_PROVIDERS: >-
+        {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}","api":"openai-completions","models":[{"id":"${BIFROST_SELECTED_MODEL}","name":"Bifrost selected model","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
 
-      # Native provider discovery / adapter runtime credentials.
-      # These are deliberately available at the Paperclip process level because
-      # Paperclip's provider/model discovery depends on them for several adapters.
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
-      ANTHROPIC_BASE_URL: "https://bifrost.phoenix-rtp.com/anthropic"
-      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
-      XAI_API_KEY: "${XAI_API_KEY:-}"
-      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
-      HF_TOKEN: "${HF_TOKEN:-}"
-      ZAI_API_KEY: "${ZAI_API_KEY:-}"
-      KIMI_MODEL_API_KEY: "${KIMI_MODEL_API_KEY:-}"
-      MINIMAX_API_KEY: "${MINIMAX_API_KEY:-}"
-      KILO_API_KEY: "${KILO_API_KEY:-}"
-      CURSOR_API_KEY: "${CURSOR_API_KEY:-}"
-
-      # Custom provider injection supported by Paperclip.
-      PAPERCLIP_OPENCODE_PROVIDERS: "${PAPERCLIP_OPENCODE_PROVIDERS}"
-      PAPERCLIP_OPENCODE_SMALL_MODEL: "${PAPERCLIP_OPENCODE_SMALL_MODEL}"
-      PAPERCLIP_PI_PROVIDERS: "${PAPERCLIP_PI_PROVIDERS}"
-      PAPERCLIP_CODEX_PROVIDERS: "${PAPERCLIP_CODEX_PROVIDERS}"
-
-      # Official image already includes the supported core CLIs.
-      # Gemini's internal sandbox is disabled because Paperclip is already
-      # controlling the container execution boundary.
-      GEMINI_SANDBOX: "false"
+      PAPERCLIP_CODEX_PROVIDERS: >-
+        {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}
 
     volumes:
       - paperclip-data:/paperclip
-
-    networks:
-      - dokploy-network
-
-  postgres:
-    image: postgres:17
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: "paperclip"
-      POSTGRES_USER: "paperclip"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
-    volumes:
-      - paperclip-postgres:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U paperclip -d paperclip"
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
     networks:
       - dokploy-network
 
@@ -99,7 +64,6 @@ networks:
   default:
     name: dokploy-network
     external: true
-
   dokploy-network:
     name: dokploy-network
     external: true
