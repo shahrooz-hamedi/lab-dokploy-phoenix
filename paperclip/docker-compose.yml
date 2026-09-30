@@ -1,19 +1,24 @@
 services:
   paperclip-postgres:
-    image: postgres:17
+    image: postgres:17-alpine
+    pull_policy: always
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     volumes:
       - paperclip-postgres:/var/lib/postgresql/data
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
+
     networks:
       - dokploy-network
 
@@ -23,49 +28,49 @@ services:
       dockerfile: Dockerfile
       args:
         PAPERCLIP_IMAGE: ${PAPERCLIP_IMAGE}
+
     image: paperclip-phoenix:2026.916.1
+    pull_policy: never
     restart: unless-stopped
 
     depends_on:
       paperclip-postgres:
         condition: service_healthy
 
-    # Use Paperclip's own CLI lifecycle.
-    # First start creates the config from the environment and bootstraps
-    # the authenticated instance. Subsequent starts reuse the existing config.
     command:
-      - /app/cli/node_modules/.bin/tsx
-      - /app/cli/src/index.ts
-      - run
-      - --bind
-      - lan
+      - /usr/local/bin/paperclip-start
 
     env_file:
       - .env
 
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
       # Runtime
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
 
       HOME: /home/node
       PAPERCLIP_HOME: /paperclip
       HERMES_HOME: /home/node/.hermes
-
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-      # ---------------------------------------------------------------------
-      # Native provider credentials
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
+      # Database
+      # -------------------------------------------------------------------
+
+      DATABASE_URL: ${DATABASE_URL}
+
+      # -------------------------------------------------------------------
+      # Paperclip native providers
+      # -------------------------------------------------------------------
 
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
 
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
       XAI_API_KEY: ${XAI_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       HF_TOKEN: ${HF_TOKEN}
@@ -75,32 +80,34 @@ services:
       KILO_API_KEY: ${KILO_API_KEY}
       CURSOR_API_KEY: ${CURSOR_API_KEY}
 
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
       # Bifrost
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
 
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
       BIFROST_API_KEY: ${BIFROST_API_KEY}
       BIFROST_SELECTED_MODEL: ${BIFROST_SELECTED_MODEL}
 
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
       # Paperclip -> OpenCode -> Bifrost
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
 
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}"},"models":{"${BIFROST_SELECTED_MODEL}":{}}}}
 
-      # ---------------------------------------------------------------------
+      PAPERCLIP_OPENCODE_SMALL_MODEL: bifrost/${BIFROST_SELECTED_MODEL}
+
+      # -------------------------------------------------------------------
       # Paperclip -> Pi -> Bifrost
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
 
       PAPERCLIP_PI_PROVIDERS: >-
         {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}","api":"openai-completions","models":[{"id":"${BIFROST_SELECTED_MODEL}","name":"Bifrost selected model","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
 
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
       # Paperclip -> Codex -> Bifrost
-      # ---------------------------------------------------------------------
+      # -------------------------------------------------------------------
 
       PAPERCLIP_CODEX_PROVIDERS: >-
         {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}

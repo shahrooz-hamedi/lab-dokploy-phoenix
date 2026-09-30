@@ -12,9 +12,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HERMES_HOME=/home/node/.hermes \
     PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-# =============================================================================
+# ============================================================================
 # Runtime dependencies
-# =============================================================================
+# ============================================================================
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -34,18 +34,15 @@ RUN apt-get update \
         gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# =============================================================================
+# ============================================================================
 # Hermes Agent
 #
-# Paperclip ships the hermes_local adapter natively.
-# No Hermes adapter/plugin installation is required.
+# Paperclip has a native hermes_local adapter.
+# Hermes itself is installed into its own persistent volume.
 #
-# Hermes is installed into:
-#   /home/node/.hermes
-#
-# The runtime compose file persists this directory with:
-#   paperclip-hermes:/home/node/.hermes
-# =============================================================================
+# Computer Use is deliberately disabled because this is a headless
+# Paperclip server container.
+# ============================================================================
 
 RUN mkdir -p /home/node/.hermes \
     && chown -R node:node /home/node/.hermes \
@@ -57,6 +54,7 @@ RUN mkdir -p /home/node/.hermes \
             bash -s -- \
                 --non-interactive \
                 --skip-browser \
+                --skip-computer-use \
                 --hermes-home /home/node/.hermes \
     ' \
     && test -x /home/node/.local/bin/hermes \
@@ -68,61 +66,21 @@ RUN mkdir -p /home/node/.hermes \
         hermes --version \
     '
 
-# =============================================================================
-# Claude Code
-# =============================================================================
-
-RUN npm install -g @anthropic-ai/claude-code \
-    && claude --version
-
-# =============================================================================
-# OpenAI Codex
-# =============================================================================
-
-RUN npm install -g @openai/codex \
-    && CODEX_DIR="$(npm root -g)/@openai/codex" \
-    && cd "$CODEX_DIR" \
-    && npm install --include=optional \
-    && codex --version
-
-# =============================================================================
-# Gemini CLI
-# =============================================================================
-
-RUN npm install -g @google/gemini-cli \
-    && gemini --version
-
-# =============================================================================
-# OpenCode
-# =============================================================================
-
-RUN npm install -g opencode-ai \
-    && opencode --version
-
-# =============================================================================
-# Pi
-# =============================================================================
+# ============================================================================
+# Additional local runtimes
+#
+# Claude, Codex, Gemini and OpenCode are already supplied by the official
+# Paperclip image and are intentionally NOT reinstalled here.
+# ============================================================================
 
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && pi --version
 
-# =============================================================================
-# Kimi Code
-# =============================================================================
-
 RUN npm install -g @moonshot-ai/kimi-code \
     && kimi --version
 
-# =============================================================================
-# Grok Build
-# =============================================================================
-
 RUN npm install -g @xai-official/grok \
     && grok --version
-
-# =============================================================================
-# Cursor Agent
-# =============================================================================
 
 RUN su -s /bin/bash node -c '\
         export HOME=/home/node; \
@@ -137,49 +95,56 @@ RUN su -s /bin/bash node -c '\
         agent --version \
     '
 
-# =============================================================================
-# Persistent Paperclip directories
-#
-# These live under /paperclip and are persisted by paperclip-data.
-#
-# Hermes is intentionally NOT stored here.
-# Hermes has its own Docker volume mounted at /home/node/.hermes.
-# =============================================================================
+# ============================================================================
+# Persistent Paperclip state
+# ============================================================================
 
-RUN mkdir -p \
-        /paperclip/cli-home/.config \
-        /paperclip/cli-home/.cache \
-        /paperclip/cli-home/.pi \
-        /paperclip/cli-home/.kimi-code \
-        /paperclip/cli-home/.grok \
-        /paperclip/cli-home/.cursor \
-        /paperclip/cli-home/.codex \
-        /paperclip/cli-home/.claude \
-        /paperclip/cli-home/.gemini \
-        /paperclip/cli-home/.opencode \
-        /paperclip/wiki \
+RUN mkdir -p /paperclip \
     && chown -R node:node /paperclip
 
-RUN mkdir -p \
-        /home/node/.codex \
-        /home/node/.gemini \
-        /home/node/.grok \
-        /home/node/.claude \
-        /home/node/.opencode \
-        /home/node/.pi \
-        /home/node/.kimi-code \
-        /home/node/.cursor \
-    && chown -R node:node \
-        /home/node/.codex \
-        /home/node/.gemini \
-        /home/node/.grok \
-        /home/node/.claude \
-        /home/node/.opencode \
-        /home/node/.pi \
-        /home/node/.kimi-code \
-        /home/node/.cursor
-# =============================================================================
-# Final runtime user
-# =============================================================================
+# ============================================================================
+# Paperclip startup wrapper
+#
+# The wrapper:
+#   1. creates Hermes' Bifrost provider configuration
+#   2. starts Paperclip through its own CLI lifecycle
+#
+# Hermes keeps secrets in environment variables and the provider config
+# references BIFROST_API_KEY through key_env.
+# ============================================================================
+
+RUN cat > /usr/local/bin/paperclip-start <<'EOF' \
+#!/bin/bash
+set -euo pipefail
+
+HERMES_CONFIG="${HERMES_HOME}/config.yaml"
+
+mkdir -p "${HERMES_HOME}"
+
+cat > "${HERMES_CONFIG}" <<CONFIG
+model:
+  provider: custom:bifrost
+  default: ${BIFROST_SELECTED_MODEL}
+  context_length: 262144
+
+providers:
+  bifrost:
+    name: Bifrost
+    api: ${BIFROST_OPENAI_BASE_URL}
+    key_env: BIFROST_API_KEY
+    transport: chat_completions
+    default_model: ${BIFROST_SELECTED_MODEL}
+    context_length: 262144
+    discover_models: true
+CONFIG
+
+exec /app/cli/node_modules/.bin/tsx \
+  /app/cli/src/index.ts \
+  run \
+  --bind \
+  lan
+EOF
+
+chmod 0755 /usr/local/bin/paperclip-start
 
 USER node
