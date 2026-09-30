@@ -93,13 +93,13 @@ OpenAI Codex
 
 —————————————————————————
 
-Codex currently publishes its Linux binary as an optional platform
+Codex currently publishes the Linux native binary as a platform-specific
 
-dependency. npm can install the main package successfully while omitting
+optional dependency. npm can install the wrapper while silently omitting
 
-that dependency. Install the optional dependencies explicitly inside the
+that binary. Install optional dependencies explicitly inside the package
 
-installed package before verifying the CLI.
+and verify the executable before continuing.
 
 —————————————————————————
 
@@ -107,6 +107,7 @@ RUN npm install -g @openai/codex
 && CODEX_DIR=”$(npm root -g)/@openai/codex” 
 && cd “$CODEX_DIR” 
 && npm install –include=optional 
+&& test -x “$(command -v codex)” 
 && codex –version
 
 —————————————————————————
