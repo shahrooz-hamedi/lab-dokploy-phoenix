@@ -54,7 +54,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 #
 #   /paperclip/cli-home/.hermes
 #
-# The installer must receive HOME=/home/node.
+# The Hermes installer must receive HOME=/home/node.
 #
 # Computer Use is intentionally skipped because Paperclip's headless
 # hermes_local adapter does not require it.
@@ -165,24 +165,35 @@ RUN npm install -g @xai-official/grok \
 #
 #   cursor
 #
-# The official Cursor installer creates:
+# Cursor officially installs its CLI as:
 #
 #   ~/.local/bin/agent
-#   ~/.local/bin/cursor-agent
 #
-# These are user-local links to the installed Cursor Agent executable.
+# The Paperclip base image can use a different HOME during image builds.
+# Therefore explicitly set HOME=/root for the Cursor installation.
 #
-# Install as root, resolve the `agent` link, and copy the executable to:
+# IMPORTANT:
+# Do not use:
+#
+#   HOME=/root curl ... | bash
+#
+# because that only sets HOME for curl.
+#
+# Instead export HOME inside the shell that executes the installer.
+#
+# After installation, expose Cursor Agent system-wide as:
 #
 #   /usr/local/bin/agent
 #
-# This provides the stable executable expected by Paperclip.
+# while retaining the original Cursor installation under /root.
 #
 
-RUN curl https://cursor.com/install -fsS | bash \
+RUN bash -lc \
+       'export HOME=/root; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        curl https://cursor.com/install -fsS | bash' \
     && test -x /root/.local/bin/agent \
-    && cp -L /root/.local/bin/agent /usr/local/bin/agent \
-    && chmod 0755 /usr/local/bin/agent \
+    && ln -sf /root/.local/bin/agent /usr/local/bin/agent \
     && /usr/local/bin/agent --version
 
 # ---------------------------------------------------------------------------
