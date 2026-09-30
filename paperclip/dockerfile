@@ -165,29 +165,24 @@ RUN npm install -g @xai-official/grok \
 #
 #   cursor
 #
-# The official Cursor installer installs the CLI as:
+# The official Cursor installer creates:
 #
-#   agent
+#   ~/.local/bin/agent
+#   ~/.local/bin/cursor-agent
 #
-# It may place it under ~/.local/bin or another user-local location.
+# These are user-local links to the installed Cursor Agent executable.
 #
-# Install as root, locate the resulting executable, then place a stable
-# system-wide copy at:
+# Install as root, resolve the `agent` link, and copy the executable to:
 #
 #   /usr/local/bin/agent
 #
-# This is also the default executable expected by Paperclip's cursor adapter.
+# This provides the stable executable expected by Paperclip.
 #
 
 RUN curl https://cursor.com/install -fsS | bash \
-    && CURSOR_AGENT="$(find /root -type f -name agent -perm /111 2>/dev/null | head -n 1)" \
-    && if [ -z "$CURSOR_AGENT" ]; then \
-         echo "Cursor Agent CLI executable 'agent' was not found" >&2; \
-         echo "Installed files under /root:" >&2; \
-         find /root -maxdepth 4 -type f 2>/dev/null | grep -E '/(agent|cursor)' | head -100 >&2 || true; \
-         exit 1; \
-       fi \
-    && install -m 0755 "$CURSOR_AGENT" /usr/local/bin/agent \
+    && test -x /root/.local/bin/agent \
+    && cp -L /root/.local/bin/agent /usr/local/bin/agent \
+    && chmod 0755 /usr/local/bin/agent \
     && /usr/local/bin/agent --version
 
 # ---------------------------------------------------------------------------
