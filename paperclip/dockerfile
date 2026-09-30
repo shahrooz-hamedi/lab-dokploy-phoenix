@@ -38,7 +38,7 @@ RUN apt-get update \
 # Hermes Agent
 #
 # Paperclip has a native hermes_local adapter.
-# Hermes itself is installed into its own persistent volume.
+# Hermes is installed into its own persistent volume.
 #
 # Computer Use is deliberately disabled because this is a headless
 # Paperclip server container.
@@ -69,7 +69,7 @@ RUN mkdir -p /home/node/.hermes \
 # ============================================================================
 # Additional local runtimes
 #
-# Claude, Codex, Gemini and OpenCode are already supplied by the official
+# Claude, Codex, Gemini and OpenCode are supplied by the official
 # Paperclip image and are intentionally NOT reinstalled here.
 # ============================================================================
 
@@ -104,16 +104,9 @@ RUN mkdir -p /paperclip \
 
 # ============================================================================
 # Paperclip startup wrapper
-#
-# The wrapper:
-#   1. creates Hermes' Bifrost provider configuration
-#   2. starts Paperclip through its own CLI lifecycle
-#
-# Hermes keeps secrets in environment variables and the provider config
-# references BIFROST_API_KEY through key_env.
 # ============================================================================
 
-RUN cat > /usr/local/bin/paperclip-start <<'EOF' \
+RUN cat > /usr/local/bin/paperclip-start <<'EOF'
 #!/bin/bash
 set -euo pipefail
 
@@ -145,6 +138,6 @@ exec /app/cli/node_modules/.bin/tsx \
   lan
 EOF
 
-chmod 0755 /usr/local/bin/paperclip-start
+RUN chmod 0755 /usr/local/bin/paperclip-start
 
 USER node
