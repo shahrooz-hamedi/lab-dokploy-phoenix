@@ -1,5 +1,3 @@
-syntax=docker/dockerfile:1.7
-
 ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
 FROM ${PAPERCLIP_IMAGE}
 
@@ -51,8 +49,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 
 Hermes Agent
 
-—————————————————————————
-
 Paperclip adapter:
 
 hermes_local
@@ -91,15 +87,11 @@ RUN npm install -g @anthropic-ai/claude-code
 
 OpenAI Codex
 
-—————————————————————————
+Codex uses a platform-specific optional dependency for its native binary.
 
-Codex currently publishes the Linux native binary as a platform-specific
+npm may install the main package without installing that optional package.
 
-optional dependency. npm can install the wrapper while silently omitting
-
-that binary. Install optional dependencies explicitly inside the package
-
-and verify the executable before continuing.
+Install the optional dependencies explicitly inside the installed package.
 
 —————————————————————————
 
@@ -159,21 +151,17 @@ RUN npm install -g @xai-official/grok
 
 Cursor Agent
 
-—————————————————————————
-
 Paperclip adapter:
 
 cursor
 
 Cursor is installed as the node user.
 
-The actual Cursor installation remains under:
+The installation remains under /home/node/.local/.
 
-/home/node/.local/
+The launcher is exposed through /usr/local/bin without copying it,
 
-We expose the launcher through a symlink so its installation-relative
-
-Node paths remain intact.
+preserving Cursor’s installation-relative paths.
 
 —————————————————————————
 
