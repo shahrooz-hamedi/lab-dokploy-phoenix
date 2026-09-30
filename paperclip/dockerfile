@@ -63,6 +63,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 # The symlink is created before running the Hermes installer so Hermes
 # state/configuration is placed in persistent storage.
 #
+# Computer Use / cua-driver is intentionally skipped because it requires
+# additional graphical system libraries that are not needed by the
+# headless Paperclip hermes_local adapter.
+#
 # Hermes executable:
 #
 #   /home/node/.local/bin/hermes
@@ -75,7 +79,7 @@ RUN mkdir -p /paperclip/cli-home/.hermes \
     && chown -h node:node /home/node/.hermes \
     && su -s /bin/bash node -c \
        'HOME=/home/node \
-        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive' \
+        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-computer-use' \
     && test -x /home/node/.local/bin/hermes \
     && /home/node/.local/bin/hermes --version
 
