@@ -52,6 +52,11 @@ services:
       HERMES_HOME: /home/node/.hermes
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
+      # Serve the built production UI.
+      # Without this, `paperclipai run` enables Vite dev middleware.
+      PAPERCLIP_UI_DEV_MIDDLEWARE: ${PAPERCLIP_UI_DEV_MIDDLEWARE}
+      SERVE_UI: ${SERVE_UI}
+
       # -------------------------------------------------------------------
       # Database
       # -------------------------------------------------------------------

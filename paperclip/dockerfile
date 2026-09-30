@@ -37,11 +37,10 @@ RUN apt-get update \
 # ============================================================================
 # Hermes Agent
 #
-# Paperclip has a native hermes_local adapter.
-# Hermes is installed into its own persistent volume.
+# Paperclip uses the native hermes_local adapter.
+# Hermes state/config lives in its own persistent volume.
 #
-# Computer Use is deliberately disabled because this is a headless
-# Paperclip server container.
+# Browser and Computer Use are disabled because Paperclip is headless.
 # ============================================================================
 
 RUN mkdir -p /home/node/.hermes \
@@ -70,7 +69,7 @@ RUN mkdir -p /home/node/.hermes \
 # Additional local runtimes
 #
 # Claude, Codex, Gemini and OpenCode are supplied by the official
-# Paperclip image and are intentionally NOT reinstalled here.
+# Paperclip image. Do not reinstall them here.
 # ============================================================================
 
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
@@ -104,6 +103,12 @@ RUN mkdir -p /paperclip \
 
 # ============================================================================
 # Paperclip startup wrapper
+#
+# Do not create or overwrite Paperclip's config.json here.
+# `paperclipai run` owns instance bootstrap/config handling.
+#
+# Hermes configuration is generated at runtime because it contains the
+# deployment-specific Bifrost endpoint/model.
 # ============================================================================
 
 RUN cat > /usr/local/bin/paperclip-start <<'EOF'
