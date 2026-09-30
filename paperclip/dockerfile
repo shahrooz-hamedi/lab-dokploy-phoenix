@@ -1,218 +1,160 @@
 ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
+
 FROM ${PAPERCLIP_IMAGE}
 
 USER root
 
-ENV DEBIAN_FRONTEND=noninteractive 
-PIP_DISABLE_PIP_VERSION_CHECK=1 
-PYTHONDONTWRITEBYTECODE=1
-
-—————————————————————————
-
-Base runtime dependencies
-
-—————————————————————————
-
-RUN apt-get update 
-&& apt-get install -y –no-install-recommends 
-ca-certificates 
-curl 
-git 
-bash 
-jq 
-ripgrep 
-fd-find 
-unzip 
-zip 
-python3 
-python3-pip 
-python3-venv 
-python3-ruamel.yaml 
-build-essential 
-gnupg 
-&& rm -rf /var/lib/apt/lists/*
-
-—————————————————————————
-
-Node.js 24
-
-—————————————————————————
-
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - 
-&& apt-get update 
-&& apt-get install -y –no-install-recommends nodejs 
-&& rm -rf /var/lib/apt/lists/* 
-&& node –version 
-&& npm –version
-
-—————————————————————————
-
-Hermes Agent
-
-Paperclip adapter:
-
-hermes_local
-
-Persistent Hermes state:
-
-/paperclip/cli-home/.hermes
-
-—————————————————————————
-
-RUN mkdir -p /paperclip/cli-home/.hermes 
-&& chown node:node /paperclip/cli-home 
-&& chown node:node /paperclip/cli-home/.hermes 
-&& rm -rf /home/node/.hermes 
-&& ln -s /paperclip/cli-home/.hermes /home/node/.hermes 
-&& chown -h node:node /home/node/.hermes 
-&& su -s /bin/bash node -c 
-‘export HOME=/home/node; 
-export PATH=”$HOME/.local/bin:$PATH”; 
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s – –non-interactive –skip-computer-use’ 
-&& test -x /home/node/.local/bin/hermes 
-&& ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes
-
-ENV PATH=/home/node/.local/bin:${PATH}
-
-—————————————————————————
-
-Claude Code
-
-—————————————————————————
-
-RUN npm install -g @anthropic-ai/claude-code 
-&& claude –version
-
-—————————————————————————
-
-OpenAI Codex
-
-Codex uses a platform-specific optional dependency for its native binary.
-
-npm may install the main package without installing that optional package.
-
-Install the optional dependencies explicitly inside the installed package.
-
-—————————————————————————
-
-RUN npm install -g @openai/codex 
-&& CODEX_DIR=”$(npm root -g)/@openai/codex” 
-&& cd “$CODEX_DIR” 
-&& npm install –include=optional 
-&& test -x “$(command -v codex)” 
-&& codex –version
-
-—————————————————————————
-
-Gemini CLI
-
-—————————————————————————
-
-RUN npm install -g @google/gemini-cli 
-&& gemini –version
-
-—————————————————————————
-
-OpenCode
-
-—————————————————————————
-
-RUN npm install -g opencode-ai 
-&& opencode –version
-
-—————————————————————————
-
-Pi
-
-—————————————————————————
-
-RUN npm install -g –ignore-scripts @earendil-works/pi-coding-agent 
-&& pi –version
-
-—————————————————————————
-
-Kimi Code
-
-—————————————————————————
-
-RUN npm install -g @moonshot-ai/kimi-code 
-&& kimi –version
-
-—————————————————————————
-
-Grok Build
-
-—————————————————————————
-
-RUN npm install -g @xai-official/grok 
-&& grok –version
-
-—————————————————————————
-
-Cursor Agent
-
-Paperclip adapter:
-
-cursor
-
-Cursor is installed as the node user.
-
-The installation remains under /home/node/.local/.
-
-The launcher is exposed through /usr/local/bin without copying it,
-
-preserving Cursor’s installation-relative paths.
-
-—————————————————————————
-
-RUN su -s /bin/bash node -c 
-‘export HOME=/home/node; 
-export PATH=”$HOME/.local/bin:$PATH”; 
-curl https://cursor.com/install -fsS | bash’ 
-&& test -x /home/node/.local/bin/agent 
-&& ln -sf /home/node/.local/bin/agent /usr/local/bin/agent 
-&& su -s /bin/bash node -c 
-‘export HOME=/home/node; 
-export PATH=”$HOME/.local/bin:$PATH”; 
-agent –version’
-
-—————————————————————————
-
-Persistent runtime directories
-
-—————————————————————————
-
-RUN mkdir -p 
-/paperclip/cli-home/.config 
-/paperclip/cli-home/.cache 
-/paperclip/cli-home/.hermes 
-/paperclip/cli-home/.pi 
-/paperclip/cli-home/.kimi-code 
-/paperclip/cli-home/.grok 
-/paperclip/cli-home/.cursor 
-/paperclip/cli-home/.codex 
-/paperclip/cli-home/.claude 
-/paperclip/cli-home/.gemini 
-/paperclip/cli-home/.opencode 
-/paperclip/wiki 
-&& chown node:node /paperclip/cli-home 
-&& chown node:node /paperclip/wiki 
-&& chown node:node /paperclip/cli-home/.config 
-&& chown node:node /paperclip/cli-home/.cache 
-&& chown node:node /paperclip/cli-home/.hermes 
-&& chown node:node /paperclip/cli-home/.pi 
-&& chown node:node /paperclip/cli-home/.kimi-code 
-&& chown node:node /paperclip/cli-home/.grok 
-&& chown node:node /paperclip/cli-home/.cursor 
-&& chown node:node /paperclip/cli-home/.codex 
-&& chown node:node /paperclip/cli-home/.claude 
-&& chown node:node /paperclip/cli-home/.gemini 
-&& chown node:node /paperclip/cli-home/.opencode
-
-—————————————————————————
-
-Final runtime user
-
-—————————————————————————
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/home/node \
+    PAPERCLIP_HOME=/paperclip \
+    PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# ---------------------------------------------------------------------------
+# Runtime dependencies
+# ---------------------------------------------------------------------------
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        bash \
+        jq \
+        ripgrep \
+        fd-find \
+        unzip \
+        zip \
+        python3 \
+        python3-pip \
+        python3-venv \
+        build-essential \
+        gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# Hermes Agent
+#
+# Paperclip's hermes_local adapter is built in.
+# We only need the Hermes CLI available in the container.
+#
+# Persistent Hermes state:
+#   /paperclip/cli-home/.hermes
+# ---------------------------------------------------------------------------
+
+RUN mkdir -p /paperclip/cli-home/.hermes \
+    && chown -R node:node /paperclip/cli-home \
+    && su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-computer-use \
+    ' \
+    && test -x /home/node/.local/bin/hermes \
+    && ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes \
+    && hermes --version
+
+# ---------------------------------------------------------------------------
+# Claude Code
+# ---------------------------------------------------------------------------
+
+RUN npm install -g @anthropic-ai/claude-code \
+    && claude --version
+
+# ---------------------------------------------------------------------------
+# OpenAI Codex
+# ---------------------------------------------------------------------------
+
+RUN npm install -g @openai/codex \
+    && CODEX_DIR="$(npm root -g)/@openai/codex" \
+    && cd "$CODEX_DIR" \
+    && npm install --include=optional \
+    && codex --version
+
+# ---------------------------------------------------------------------------
+# Gemini CLI
+# ---------------------------------------------------------------------------
+
+RUN npm install -g @google/gemini-cli \
+    && gemini --version
+
+# ---------------------------------------------------------------------------
+# OpenCode
+# ---------------------------------------------------------------------------
+
+RUN npm install -g opencode-ai \
+    && opencode --version
+
+# ---------------------------------------------------------------------------
+# Pi
+# ---------------------------------------------------------------------------
+
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
+    && pi --version
+
+# ---------------------------------------------------------------------------
+# Kimi Code
+# ---------------------------------------------------------------------------
+
+RUN npm install -g @moonshot-ai/kimi-code \
+    && kimi --version
+
+# ---------------------------------------------------------------------------
+# Grok Build
+# ---------------------------------------------------------------------------
+
+RUN npm install -g @xai-official/grok \
+    && grok --version
+
+# ---------------------------------------------------------------------------
+# Cursor Agent
+# ---------------------------------------------------------------------------
+
+RUN su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        curl -fsSL https://cursor.com/install | bash \
+    ' \
+    && test -x /home/node/.local/bin/agent \
+    && ln -sf /home/node/.local/bin/agent /usr/local/bin/agent \
+    && su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        agent --version \
+    '
+
+# ---------------------------------------------------------------------------
+# Persistent Paperclip / CLI runtime directories
+# ---------------------------------------------------------------------------
+
+RUN mkdir -p \
+        /paperclip/cli-home/.config \
+        /paperclip/cli-home/.cache \
+        /paperclip/cli-home/.hermes \
+        /paperclip/cli-home/.pi \
+        /paperclip/cli-home/.kimi-code \
+        /paperclip/cli-home/.grok \
+        /paperclip/cli-home/.cursor \
+        /paperclip/cli-home/.codex \
+        /paperclip/cli-home/.claude \
+        /paperclip/cli-home/.gemini \
+        /paperclip/cli-home/.opencode \
+        /paperclip/wiki \
+    && chown -R node:node /paperclip/cli-home /paperclip/wiki
+
+# ---------------------------------------------------------------------------
+# Hermes persistent state
+#
+# Hermes normally uses ~/.hermes.
+# Keep it on the Paperclip persistent volume.
+# ---------------------------------------------------------------------------
+
+RUN rm -rf /home/node/.hermes \
+    && ln -s /paperclip/cli-home/.hermes /home/node/.hermes \
+    && chown -h node:node /home/node/.hermes
+
+# ---------------------------------------------------------------------------
+# Final runtime user
+# ---------------------------------------------------------------------------
 
 USER node
