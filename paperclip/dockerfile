@@ -73,12 +73,24 @@ ENV PATH=/home/node/.local/bin:${PATH}
 # ---------------------------------------------------------------------------
 # Claude Code
 # ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   claude_local
+#
+# ---------------------------------------------------------------------------
 
 RUN npm install -g @anthropic-ai/claude-code \
     && claude --version
 
 # ---------------------------------------------------------------------------
 # OpenAI Codex
+# ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   codex_local
+#
 # ---------------------------------------------------------------------------
 
 RUN npm install -g @openai/codex \
@@ -87,12 +99,24 @@ RUN npm install -g @openai/codex \
 # ---------------------------------------------------------------------------
 # Gemini CLI
 # ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   gemini_local
+#
+# ---------------------------------------------------------------------------
 
 RUN npm install -g @google/gemini-cli \
     && gemini --version
 
 # ---------------------------------------------------------------------------
 # OpenCode
+# ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   opencode_local
+#
 # ---------------------------------------------------------------------------
 
 RUN npm install -g opencode-ai \
@@ -101,6 +125,12 @@ RUN npm install -g opencode-ai \
 # ---------------------------------------------------------------------------
 # Pi
 # ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   pi_local
+#
+# ---------------------------------------------------------------------------
 
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && pi --version
@@ -108,12 +138,24 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
 # ---------------------------------------------------------------------------
 # Kimi Code
 # ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   kimi_local
+#
+# ---------------------------------------------------------------------------
 
 RUN npm install -g @moonshot-ai/kimi-code \
     && kimi --version
 
 # ---------------------------------------------------------------------------
 # Grok Build
+# ---------------------------------------------------------------------------
+#
+# Paperclip adapter:
+#
+#   grok_local
+#
 # ---------------------------------------------------------------------------
 
 RUN npm install -g @xai-official/grok \
@@ -123,23 +165,36 @@ RUN npm install -g @xai-official/grok \
 # Cursor Agent
 # ---------------------------------------------------------------------------
 #
-# Cursor installs its CLI as:
+# Paperclip adapter:
 #
-#   /root/.local/bin/agent
+#   cursor
 #
-# The container ultimately runs as node, so do NOT expose it through a
-# symlink into /root. Copy the executable into /usr/local/bin instead.
+# IMPORTANT:
+# Install Cursor as the final runtime user (node).
+#
+# Cursor's launcher is installation-location aware. Do NOT copy the
+# launcher from /root into /usr/local/bin, because its Node entrypoint
+# depends on the original Cursor installation directory.
+#
+# Official install location:
+#
+#   ~/.local/bin/agent
+#
+# For the node user:
+#
+#   /home/node/.local/bin/agent
 #
 # ---------------------------------------------------------------------------
 
-RUN bash -lc \
-       'export HOME=/root; \
+RUN su -s /bin/bash node -c \
+       'export HOME=/home/node; \
         export PATH="$HOME/.local/bin:$PATH"; \
         curl https://cursor.com/install -fsS | bash' \
-    && test -e /root/.local/bin/agent \
-    && cp -L /root/.local/bin/agent /usr/local/bin/agent \
-    && chmod 755 /usr/local/bin/agent \
-    && /usr/local/bin/agent --version
+    && test -x /home/node/.local/bin/agent \
+    && su -s /bin/bash node -c \
+       'export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        agent --version'
 
 # ---------------------------------------------------------------------------
 # Persistent runtime directories
