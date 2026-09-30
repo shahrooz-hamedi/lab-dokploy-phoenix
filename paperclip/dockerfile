@@ -7,8 +7,7 @@ USER root
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    HERMES_HOME=/opt/hermes
+    PYTHONDONTWRITEBYTECODE=1
 
 # ---------------------------------------------------------------------------
 # Base runtime dependencies
@@ -54,19 +53,33 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 # Hermes Agent
 # ---------------------------------------------------------------------------
 #
-# Paperclip's hermes_local adapter launches the `hermes` executable.
-# Install Hermes into a dedicated persistent-friendly location.
+# Paperclip's hermes_local adapter expects the normal:
+#
+#   $HOME/.hermes
+#
+# Keep HOME as /home/node, but persist ~/.hermes through the existing
+# /paperclip Docker volume.
+#
+# The symlink is created before running the Hermes installer so Hermes
+# state/configuration is placed in persistent storage.
+#
+# Hermes executable:
+#
+#   /home/node/.local/bin/hermes
 #
 
-RUN mkdir -p /opt/hermes \
-    && chown -R node:node /opt/hermes \
+RUN mkdir -p /paperclip/cli-home/.hermes \
+    && chown -R node:node /paperclip/cli-home \
+    && rm -rf /home/node/.hermes \
+    && ln -s /paperclip/cli-home/.hermes /home/node/.hermes \
+    && chown -h node:node /home/node/.hermes \
     && su -s /bin/bash node -c \
-       'HOME=/opt/hermes HERMES_HOME=/opt/hermes \
-        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash' \
-    && test -x /opt/hermes/.local/bin/hermes \
-    && /opt/hermes/.local/bin/hermes --version
+       'HOME=/home/node \
+        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive' \
+    && test -x /home/node/.local/bin/hermes \
+    && /home/node/.local/bin/hermes --version
 
-ENV PATH=/opt/hermes/.local/bin:/opt/hermes/bin:${PATH}
+ENV PATH=/home/node/.local/bin:${PATH}
 
 # ---------------------------------------------------------------------------
 # Claude Code
@@ -103,8 +116,6 @@ RUN npm install -g @google/gemini-cli \
 # ---------------------------------------------------------------------------
 #
 # Paperclip adapter: opencode_local
-#
-# Paperclip's current adapter runtime expects the `opencode-ai` package.
 #
 
 RUN npm install -g opencode-ai \
@@ -146,8 +157,15 @@ RUN npm install -g @xai-official/grok \
 #
 # Paperclip adapter: cursor
 #
-# The Paperclip adapter defaults to the `agent` executable.
-# Cursor's official installer provides `cursor-agent`.
+# Cursor's official installer provides:
+#
+#   cursor-agent
+#
+# Paperclip's cursor adapter defaults to:
+#
+#   agent
+#
+# Therefore provide the expected `agent` executable as a symlink.
 #
 
 RUN curl https://cursor.com/install -fsS | bash \
@@ -166,15 +184,21 @@ RUN curl https://cursor.com/install -fsS | bash \
 # Persistent runtime directories
 # ---------------------------------------------------------------------------
 #
-# Paperclip owns /paperclip and this directory is backed by paperclip-data.
-# Keep runtime-specific state here where the adapter supports configurable
-# homes, while leaving Paperclip's own application state untouched.
+# /paperclip is backed by the paperclip-data Docker volume.
+#
+# Paperclip itself uses:
+#
+#   PAPERCLIP_HOME=/paperclip
+#
+# CLI-specific homes are kept under /paperclip/cli-home so they survive
+# container recreation without changing Paperclip's application home.
 #
 
 RUN mkdir -p \
       /paperclip/cli-home \
       /paperclip/cli-home/.config \
       /paperclip/cli-home/.cache \
+      /paperclip/cli-home/.hermes \
       /paperclip/cli-home/.pi \
       /paperclip/cli-home/.kimi-code \
       /paperclip/cli-home/.grok \
