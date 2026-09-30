@@ -25,19 +25,35 @@ services:
         PAPERCLIP_IMAGE: ${PAPERCLIP_IMAGE}
     image: paperclip-phoenix:2026.916.1
     restart: unless-stopped
+
     depends_on:
       paperclip-postgres:
         condition: service_healthy
+
     env_file:
       - .env
+
     environment:
       DATABASE_URL: ${DATABASE_URL}
 
-      # Paperclip/local-agent runtime PATH
+      # ---------------------------------------------------------------------
+      # Runtime
+      # ---------------------------------------------------------------------
+
+      HOME: /home/node
+      PAPERCLIP_HOME: /paperclip
+      HERMES_HOME: /home/node/.hermes
+
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+      # ---------------------------------------------------------------------
+      # Native provider credentials
+      # ---------------------------------------------------------------------
 
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL}
+
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       XAI_API_KEY: ${XAI_API_KEY}
@@ -49,17 +65,45 @@ services:
       KILO_API_KEY: ${KILO_API_KEY}
       CURSOR_API_KEY: ${CURSOR_API_KEY}
 
+      # ---------------------------------------------------------------------
+      # Bifrost
+      #
+      # OpenAI-compatible endpoint used by OpenCode / Pi / Codex.
+      # ---------------------------------------------------------------------
+
+      BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
+      BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
+      BIFROST_API_KEY: ${BIFROST_API_KEY}
+      BIFROST_SELECTED_MODEL: ${BIFROST_SELECTED_MODEL}
+
+      # ---------------------------------------------------------------------
+      # Paperclip -> OpenCode -> Bifrost
+      # ---------------------------------------------------------------------
+
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}"},"models":{"${BIFROST_SELECTED_MODEL}":{}}}}
 
+      # ---------------------------------------------------------------------
+      # Paperclip -> Pi -> Bifrost
+      # ---------------------------------------------------------------------
+
       PAPERCLIP_PI_PROVIDERS: >-
         {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}","api":"openai-completions","models":[{"id":"${BIFROST_SELECTED_MODEL}","name":"Bifrost selected model","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
+
+      # ---------------------------------------------------------------------
+      # Paperclip -> Codex -> Bifrost
+      # ---------------------------------------------------------------------
 
       PAPERCLIP_CODEX_PROVIDERS: >-
         {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}
 
     volumes:
+      # Paperclip persistent application data
       - paperclip-data:/paperclip
+
+      # Hermes installation + state + sessions + skills + config
+      - paperclip-hermes:/home/node/.hermes
+
     networks:
       - dokploy-network
 
@@ -67,6 +111,7 @@ networks:
   default:
     name: dokploy-network
     external: true
+
   dokploy-network:
     name: dokploy-network
     external: true
@@ -74,3 +119,4 @@ networks:
 volumes:
   paperclip-data:
   paperclip-postgres:
+  paperclip-hermes:
