@@ -2,15 +2,68 @@ FROM ghcr.io/paperclipai/paperclip:2026.916.1
 
 USER root
 
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
         python3-pip \
         python3.13-venv \
-    && rm -rf /var/lib/apt/lists/* \
-    && python3 -m venv /opt/hermes \
+    && rm -rf /var/lib/apt/lists/*
+
+# Hermes Agent: Paperclip's built-in hermes_local adapter launches the
+# "hermes" executable from PATH.
+RUN python3 -m venv /opt/hermes \
     && /opt/hermes/bin/pip install --upgrade pip \
     && /opt/hermes/bin/pip install hermes-agent \
-    && ln -s /opt/hermes/bin/hermes /usr/local/bin/hermes \
-    && hermes --version
+    && ln -sf /opt/hermes/bin/hermes /usr/local/bin/hermes \
+    && /usr/local/bin/hermes --version
 
+# Pi: Paperclip's pi_local adapter expects the "pi" executable.
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
+    && pi --version
+
+# Kimi Code: Paperclip's kimi_local adapter expects the "kimi" executable.
+RUN npm install -g @moonshot-ai/kimi-code@latest \
+    && kimi --version
+
+# Grok Build: Paperclip's grok_local adapter expects the official "grok"
+# executable. The official package is the npm distribution of Grok Build.
+RUN npm install -g @xai-official/grok@latest \
+    && grok --version
+
+# Cursor Agent CLI: Paperclip's cursor adapter defaults to the "agent"
+# executable. The official installer provides cursor-agent; expose both names.
+RUN curl https://cursor.com/install -fsS | bash \
+    && if [ -x /root/.local/bin/cursor-agent ]; then \
+         install -m 0755 /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent; \
+       elif [ -x /root/.cursor/bin/cursor-agent ]; then \
+         install -m 0755 /root/.cursor/bin/cursor-agent /usr/local/bin/cursor-agent; \
+       else \
+         echo "Cursor Agent CLI was not installed where expected" >&2; \
+         exit 1; \
+       fi \
+    && ln -sf /usr/local/bin/cursor-agent /usr/local/bin/agent \
+    && /usr/local/bin/cursor-agent --version
+
+# Persistent locations for local CLI state. Paperclip itself remains the
+# owner of /paperclip; these directories are intentionally under it so they
+# survive container recreation without creating another Docker volume.
+RUN mkdir -p \
+      /paperclip/cli-home \
+      /paperclip/cli-home/.config \
+      /paperclip/cli-home/.cache \
+      /paperclip/cli-home/.pi \
+      /paperclip/cli-home/.kimi-code \
+      /paperclip/cli-home/.grok \
+      /paperclip/cli-home/.cursor \
+      /paperclip/wiki \
+    && chown -R node:node /paperclip/cli-home /paperclip/wiki
+
+# The official image runs the application as node. Keep the Paperclip image's
+# own entrypoint/CMD unchanged.
 USER node
