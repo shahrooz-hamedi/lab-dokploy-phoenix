@@ -53,15 +53,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 # Hermes Agent
 # ---------------------------------------------------------------------------
 #
-# Paperclip's hermes_local adapter expects the normal:
+# Paperclip's hermes_local adapter expects:
 #
 #   $HOME/.hermes
 #
-# Keep HOME as /home/node, but persist ~/.hermes through the existing
-# /paperclip Docker volume.
+# Keep HOME as /home/node, while persisting Hermes state through:
 #
-# The symlink is created before running the Hermes installer so Hermes
-# state/configuration is placed in persistent storage.
+#   /paperclip/cli-home/.hermes
+#
+# The installer must receive HOME=/home/node itself. This is done by
+# exporting HOME inside the shell that runs the installer, rather than
+# assigning HOME only to the curl process in a pipeline.
 #
 # Computer Use / cua-driver is intentionally skipped because it is not
 # required by Paperclip's headless hermes_local adapter.
@@ -70,12 +72,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 #
 #   /home/node/.local/bin/hermes
 #
-# IMPORTANT:
-# The Hermes installer completes successfully, but `hermes --version`
-# returns exit code 1 in the Docker build environment. Therefore we only
-# verify that the executable was installed here. Actual Hermes execution
-# will be tested after the container starts.
-#
 
 RUN mkdir -p /paperclip/cli-home/.hermes \
     && chown -R node:node /paperclip/cli-home \
@@ -83,7 +79,8 @@ RUN mkdir -p /paperclip/cli-home/.hermes \
     && ln -s /paperclip/cli-home/.hermes /home/node/.hermes \
     && chown -h node:node /home/node/.hermes \
     && su -s /bin/bash node -c \
-       'HOME=/home/node \
+       'export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
         curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-computer-use' \
     && test -x /home/node/.local/bin/hermes
 
