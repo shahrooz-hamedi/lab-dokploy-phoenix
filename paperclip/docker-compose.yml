@@ -1,7 +1,6 @@
 services:
   paperclip-postgres:
     image: postgres:17-alpine
-    pull_policy: always
     restart: unless-stopped
 
     environment:
