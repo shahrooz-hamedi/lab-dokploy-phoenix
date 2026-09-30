@@ -30,6 +30,18 @@ services:
       paperclip-postgres:
         condition: service_healthy
 
+    # Use Paperclip's own CLI lifecycle.
+    # On first start this creates config.json from the environment,
+    # generates the bootstrap CEO invite, runs doctor, and starts the server.
+    # On subsequent starts the existing config is preserved.
+    command:
+      - /app/cli/node_modules/.bin/tsx
+      - /app/cli/src/index.ts
+      - run
+      - --yes
+      - --bind
+      - lan
+
     env_file:
       - .env
 
