@@ -33,6 +33,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
 
+      # Paperclip/local-agent runtime PATH
+      PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}

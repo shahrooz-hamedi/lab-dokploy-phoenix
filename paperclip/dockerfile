@@ -27,6 +27,7 @@ RUN apt-get update \
         python3 \
         python3-pip \
         python3-venv \
+        python3-ruamel.yaml \
         build-essential \
         gnupg \
     && rm -rf /var/lib/apt/lists/*
@@ -50,15 +51,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 #
 #   hermes_local
 #
-# Hermes state is persisted under:
+# Persistent Hermes state:
 #
 #   /paperclip/cli-home/.hermes
 #
-# The Hermes installer must receive HOME=/home/node.
-#
-# Computer Use is intentionally skipped because Paperclip's headless
-# hermes_local adapter does not require it.
-#
+# ---------------------------------------------------------------------------
 
 RUN mkdir -p /paperclip/cli-home/.hermes \
     && chown -R node:node /paperclip/cli-home \
@@ -76,11 +73,6 @@ ENV PATH=/home/node/.local/bin:${PATH}
 # ---------------------------------------------------------------------------
 # Claude Code
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   claude_local
-#
 
 RUN npm install -g @anthropic-ai/claude-code \
     && claude --version
@@ -88,11 +80,6 @@ RUN npm install -g @anthropic-ai/claude-code \
 # ---------------------------------------------------------------------------
 # OpenAI Codex
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   codex_local
-#
 
 RUN npm install -g @openai/codex \
     && codex --version
@@ -100,11 +87,6 @@ RUN npm install -g @openai/codex \
 # ---------------------------------------------------------------------------
 # Gemini CLI
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   gemini_local
-#
 
 RUN npm install -g @google/gemini-cli \
     && gemini --version
@@ -112,11 +94,6 @@ RUN npm install -g @google/gemini-cli \
 # ---------------------------------------------------------------------------
 # OpenCode
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   opencode_local
-#
 
 RUN npm install -g opencode-ai \
     && opencode --version
@@ -124,11 +101,6 @@ RUN npm install -g opencode-ai \
 # ---------------------------------------------------------------------------
 # Pi
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   pi_local
-#
 
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && pi --version
@@ -136,11 +108,6 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
 # ---------------------------------------------------------------------------
 # Kimi Code
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   kimi_local
-#
 
 RUN npm install -g @moonshot-ai/kimi-code \
     && kimi --version
@@ -148,11 +115,6 @@ RUN npm install -g @moonshot-ai/kimi-code \
 # ---------------------------------------------------------------------------
 # Grok Build
 # ---------------------------------------------------------------------------
-#
-# Paperclip adapter:
-#
-#   grok_local
-#
 
 RUN npm install -g @xai-official/grok \
     && grok --version
@@ -161,45 +123,26 @@ RUN npm install -g @xai-official/grok \
 # Cursor Agent
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter:
+# Cursor installs its CLI as:
 #
-#   cursor
+#   /root/.local/bin/agent
 #
-# Cursor officially installs its CLI as:
+# The container ultimately runs as node, so do NOT expose it through a
+# symlink into /root. Copy the executable into /usr/local/bin instead.
 #
-#   ~/.local/bin/agent
-#
-# The Paperclip base image can use a different HOME during image builds.
-# Therefore explicitly set HOME=/root for the Cursor installation.
-#
-# IMPORTANT:
-# Do not use:
-#
-#   HOME=/root curl ... | bash
-#
-# because that only sets HOME for curl.
-#
-# Instead export HOME inside the shell that executes the installer.
-#
-# After installation, expose Cursor Agent system-wide as:
-#
-#   /usr/local/bin/agent
-#
-# while retaining the original Cursor installation under /root.
-#
+# ---------------------------------------------------------------------------
 
 RUN bash -lc \
        'export HOME=/root; \
         export PATH="$HOME/.local/bin:$PATH"; \
         curl https://cursor.com/install -fsS | bash' \
-    && test -x /root/.local/bin/agent \
-    && ln -sf /root/.local/bin/agent /usr/local/bin/agent \
+    && test -e /root/.local/bin/agent \
+    && cp -L /root/.local/bin/agent /usr/local/bin/agent \
+    && chmod 755 /usr/local/bin/agent \
     && /usr/local/bin/agent --version
 
 # ---------------------------------------------------------------------------
-
 # Persistent runtime directories
-
 # ---------------------------------------------------------------------------
 
 RUN mkdir -p \
@@ -228,7 +171,9 @@ RUN mkdir -p \
     && chown node:node /paperclip/cli-home/.claude \
     && chown node:node /paperclip/cli-home/.gemini \
     && chown node:node /paperclip/cli-home/.opencode
+
 # ---------------------------------------------------------------------------
 # Final runtime user
 # ---------------------------------------------------------------------------
+
 USER node
