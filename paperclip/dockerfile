@@ -36,11 +36,6 @@ RUN apt-get update \
 
 # ============================================================================
 # Hermes Agent
-#
-# Paperclip uses the native hermes_local adapter.
-# Hermes state/config lives in its own persistent volume.
-#
-# Browser and Computer Use are disabled because Paperclip is headless.
 # ============================================================================
 
 RUN mkdir -p /home/node/.hermes \
@@ -67,9 +62,6 @@ RUN mkdir -p /home/node/.hermes \
 
 # ============================================================================
 # Additional local runtimes
-#
-# Claude, Codex, Gemini and OpenCode are supplied by the official
-# Paperclip image. Do not reinstall them here.
 # ============================================================================
 
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
@@ -95,25 +87,133 @@ RUN su -s /bin/bash node -c '\
     '
 
 # ============================================================================
-# Persistent Paperclip state
+# Persistent directories
 # ============================================================================
 
-RUN mkdir -p /paperclip \
-    && chown -R node:node /paperclip
+RUN mkdir -p /paperclip /home/node/.hermes \
+    && chown -R node:node /paperclip /home/node/.hermes
 
 # ============================================================================
-# Paperclip startup wrapper
+# Paperclip startup
 #
-# Do not create or overwrite Paperclip's config.json here.
-# `paperclipai run` owns instance bootstrap/config handling.
-#
-# Hermes configuration is generated at runtime because it contains the
-# deployment-specific Bifrost endpoint/model.
+# Creates the persistent instance config from environment variables on the
+# first start. Existing config is preserved.
 # ============================================================================
 
 RUN cat > /usr/local/bin/paperclip-start <<'EOF'
 #!/bin/bash
 set -euo pipefail
+
+INSTANCE_DIR="${PAPERCLIP_HOME}/instances/default"
+CONFIG="${INSTANCE_DIR}/config.json"
+
+mkdir -p "${INSTANCE_DIR}"
+
+# ---------------------------------------------------------------------------
+# Validate required deployment secrets.
+# ---------------------------------------------------------------------------
+
+if [ -z "${PAPERCLIP_SECRETS_MASTER_KEY:-}" ]; then
+    echo "ERROR: PAPERCLIP_SECRETS_MASTER_KEY is required."
+    exit 1
+fi
+
+if [ -z "${PAPERCLIP_AGENT_JWT_SECRET:-}" ]; then
+    echo "ERROR: PAPERCLIP_AGENT_JWT_SECRET is required."
+    exit 1
+fi
+
+if [ -z "${DATABASE_URL:-}" ]; then
+    echo "ERROR: DATABASE_URL is required."
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# First-start Paperclip configuration.
+#
+# Never overwrite an existing config. This preserves the persistent instance.
+# ---------------------------------------------------------------------------
+
+if [ ! -f "${CONFIG}" ]; then
+    echo "Paperclip config not found; creating deployment configuration..."
+
+    cat > "${CONFIG}" <<CONFIG
+{
+  "\$meta": {
+    "version": 1,
+    "source": "phoenix-deployment"
+  },
+  "database": {
+    "mode": "postgres",
+    "connectionString": "${DATABASE_URL}",
+    "embeddedPostgresDataDir": "/paperclip/instances/default/db",
+    "embeddedPostgresPort": 54329,
+    "backup": {
+      "enabled": false,
+      "intervalMinutes": 60,
+      "retentionDays": 30,
+      "dir": "/paperclip/instances/default/data/backups"
+    }
+  },
+  "logging": {
+    "mode": "file",
+    "logDir": "/paperclip/instances/default/logs"
+  },
+  "server": {
+    "deploymentMode": "${PAPERCLIP_DEPLOYMENT_MODE}",
+    "exposure": "${PAPERCLIP_DEPLOYMENT_EXPOSURE}",
+    "bind": "lan",
+    "host": "0.0.0.0",
+    "port": ${PORT},
+    "allowedHostnames": [
+      "${PAPERCLIP_ALLOWED_HOSTNAMES}"
+    ],
+    "serveUi": true
+  },
+  "telemetry": {
+    "enabled": false
+  },
+  "updates": {
+    "checkEnabled": false
+  },
+  "auth": {
+    "baseUrlMode": "${PAPERCLIP_AUTH_BASE_URL_MODE}",
+    "publicBaseUrl": "${PAPERCLIP_AUTH_PUBLIC_BASE_URL}",
+    "disableSignUp": false
+  },
+  "storage": {
+    "provider": "local_disk",
+    "localDisk": {
+      "baseDir": "/paperclip/instances/default/data/storage"
+    },
+    "s3": {
+      "bucket": "paperclip",
+      "region": "us-east-1",
+      "prefix": "",
+      "forcePathStyle": false
+    }
+  },
+  "secrets": {
+    "provider": "local_encrypted",
+    "strictMode": true,
+    "localEncrypted": {
+      "keyFilePath": "/paperclip/instances/default/secrets/master.key"
+    }
+  }
+}
+CONFIG
+
+    chmod 0600 "${CONFIG}"
+    chown node:node "${CONFIG}"
+
+    echo "Paperclip configuration created."
+else
+    echo "Using existing Paperclip configuration: ${CONFIG}"
+fi
+
+# ---------------------------------------------------------------------------
+# Hermes configuration
+# ---------------------------------------------------------------------------
 
 HERMES_CONFIG="${HERMES_HOME}/config.yaml"
 
@@ -135,6 +235,14 @@ providers:
     context_length: 262144
     discover_models: true
 CONFIG
+
+chmod 0600 "${HERMES_CONFIG}"
+
+# ---------------------------------------------------------------------------
+# Start Paperclip.
+# PAPERCLIP_UI_DEV_MIDDLEWARE=false is supplied by Compose/.env, so `run`
+# does not force Vite development middleware.
+# ---------------------------------------------------------------------------
 
 exec /app/cli/node_modules/.bin/tsx \
   /app/cli/src/index.ts \
