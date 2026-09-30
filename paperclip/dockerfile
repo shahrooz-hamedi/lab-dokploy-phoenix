@@ -12,13 +12,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # ---------------------------------------------------------------------------
 # Base runtime dependencies
 # ---------------------------------------------------------------------------
-#
-# Node.js 24 is intentional:
-# - Paperclip's current Codex ACP prerequisite is Node >=24.11
-# - current Kimi Code requires Node >=24.15
-#
-# Also provide the common Unix tooling expected by coding agents.
-#
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -53,24 +46,18 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 # Hermes Agent
 # ---------------------------------------------------------------------------
 #
-# Paperclip's hermes_local adapter expects:
+# Paperclip adapter:
 #
-#   $HOME/.hermes
+#   hermes_local
 #
-# Keep HOME as /home/node, while persisting Hermes state through:
+# Hermes state is persisted under:
 #
 #   /paperclip/cli-home/.hermes
 #
-# The installer must receive HOME=/home/node itself. This is done by
-# exporting HOME inside the shell that runs the installer, rather than
-# assigning HOME only to the curl process in a pipeline.
+# The installer must receive HOME=/home/node.
 #
-# Computer Use / cua-driver is intentionally skipped because it is not
-# required by Paperclip's headless hermes_local adapter.
-#
-# Hermes executable:
-#
-#   /home/node/.local/bin/hermes
+# Computer Use is intentionally skipped because Paperclip's headless
+# hermes_local adapter does not require it.
 #
 
 RUN mkdir -p /paperclip/cli-home/.hermes \
@@ -90,7 +77,9 @@ ENV PATH=/home/node/.local/bin:${PATH}
 # Claude Code
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: claude_local
+# Paperclip adapter:
+#
+#   claude_local
 #
 
 RUN npm install -g @anthropic-ai/claude-code \
@@ -100,7 +89,9 @@ RUN npm install -g @anthropic-ai/claude-code \
 # OpenAI Codex
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: codex_local
+# Paperclip adapter:
+#
+#   codex_local
 #
 
 RUN npm install -g @openai/codex \
@@ -110,7 +101,9 @@ RUN npm install -g @openai/codex \
 # Gemini CLI
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: gemini_local
+# Paperclip adapter:
+#
+#   gemini_local
 #
 
 RUN npm install -g @google/gemini-cli \
@@ -120,7 +113,9 @@ RUN npm install -g @google/gemini-cli \
 # OpenCode
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: opencode_local
+# Paperclip adapter:
+#
+#   opencode_local
 #
 
 RUN npm install -g opencode-ai \
@@ -130,7 +125,9 @@ RUN npm install -g opencode-ai \
 # Pi
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: pi_local
+# Paperclip adapter:
+#
+#   pi_local
 #
 
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
@@ -140,7 +137,9 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
 # Kimi Code
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: kimi_local
+# Paperclip adapter:
+#
+#   kimi_local
 #
 
 RUN npm install -g @moonshot-ai/kimi-code \
@@ -150,7 +149,9 @@ RUN npm install -g @moonshot-ai/kimi-code \
 # Grok Build
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: grok_local
+# Paperclip adapter:
+#
+#   grok_local
 #
 
 RUN npm install -g @xai-official/grok \
@@ -160,30 +161,34 @@ RUN npm install -g @xai-official/grok \
 # Cursor Agent
 # ---------------------------------------------------------------------------
 #
-# Paperclip adapter: cursor
+# Paperclip adapter:
 #
-# Cursor's official installer provides:
+#   cursor
 #
-#   cursor-agent
-#
-# Paperclip's cursor adapter defaults to:
+# The official Cursor installer installs the CLI as:
 #
 #   agent
 #
-# Therefore provide the expected `agent` executable as a symlink.
+# It may place it under ~/.local/bin or another user-local location.
+#
+# Install as root, locate the resulting executable, then place a stable
+# system-wide copy at:
+#
+#   /usr/local/bin/agent
+#
+# This is also the default executable expected by Paperclip's cursor adapter.
 #
 
 RUN curl https://cursor.com/install -fsS | bash \
-    && if [ -x /root/.local/bin/cursor-agent ]; then \
-         install -m 0755 /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent; \
-       elif [ -x /root/.cursor/bin/cursor-agent ]; then \
-         install -m 0755 /root/.cursor/bin/cursor-agent /usr/local/bin/cursor-agent; \
-       else \
-         echo "Cursor Agent CLI was not installed where expected" >&2; \
+    && CURSOR_AGENT="$(find /root -type f -name agent -perm /111 2>/dev/null | head -n 1)" \
+    && if [ -z "$CURSOR_AGENT" ]; then \
+         echo "Cursor Agent CLI executable 'agent' was not found" >&2; \
+         echo "Installed files under /root:" >&2; \
+         find /root -maxdepth 4 -type f 2>/dev/null | grep -E '/(agent|cursor)' | head -100 >&2 || true; \
          exit 1; \
        fi \
-    && ln -sf /usr/local/bin/cursor-agent /usr/local/bin/agent \
-    && /usr/local/bin/cursor-agent --version
+    && install -m 0755 "$CURSOR_AGENT" /usr/local/bin/agent \
+    && /usr/local/bin/agent --version
 
 # ---------------------------------------------------------------------------
 # Persistent runtime directories
@@ -195,8 +200,7 @@ RUN curl https://cursor.com/install -fsS | bash \
 #
 #   PAPERCLIP_HOME=/paperclip
 #
-# CLI-specific homes are kept under /paperclip/cli-home so they survive
-# container recreation without changing Paperclip's application home.
+# CLI-specific homes are kept under /paperclip/cli-home.
 #
 
 RUN mkdir -p \
