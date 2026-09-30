@@ -160,6 +160,24 @@ RUN mkdir -p \
         /paperclip/wiki \
     && chown -R node:node /paperclip
 
+RUN mkdir -p \
+        /home/node/.codex \
+        /home/node/.gemini \
+        /home/node/.grok \
+        /home/node/.claude \
+        /home/node/.opencode \
+        /home/node/.pi \
+        /home/node/.kimi-code \
+        /home/node/.cursor \
+    && chown -R node:node \
+        /home/node/.codex \
+        /home/node/.gemini \
+        /home/node/.grok \
+        /home/node/.claude \
+        /home/node/.opencode \
+        /home/node/.pi \
+        /home/node/.kimi-code \
+        /home/node/.cursor
 # =============================================================================
 # Final runtime user
 # =============================================================================
