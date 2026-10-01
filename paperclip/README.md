@@ -1,3 +1,6 @@
+##
+BEST COMMIT BEFORE ADDING CEO DASHBOARD
+
 Paperclip self-hosted deployment
 
 Pinned Paperclip image: ghcr.io/paperclipai/paperclip:2026.916.1
