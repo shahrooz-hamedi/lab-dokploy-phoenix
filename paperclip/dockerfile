@@ -1,74 +1,81 @@
-ARGPAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
-FROM${PAPERCLIP_IMAGE}
+ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
 
-USERroot
+FROM ${PAPERCLIP_IMAGE}
 
-ENVDEBIAN_FRONTEND=noninteractive\
-PIP_DISABLE_PIP_VERSION_CHECK=1\
-PYTHONDONTWRITEBYTECODE=1\
-HERMES_HOME=/home/node/.hermes
+USER root
 
-RUNapt-getupdate\
-&&apt-getinstall-y--no-install-recommends\
-ca-certificates\
-curl\
-git\
-bash\
-jq\
-ripgrep\
-fd-find\
-unzip\
-zip\
-python3\
-python3-pip\
-python3-venv\
-build-essential\
-gnupg\
-&&rm-rf/var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive \
+    HOME=/home/node \
+    PAPERCLIP_HOME=/paperclip \
+    HERMES_HOME=/home/node/.hermes \
+    PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-RUNmkdir-p/home/node/.hermes\
-&&chown-Rnode:node/home/node/.hermes
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        python3-venv \
+        build-essential \
+        unzip \
+        zip \
+    && rm -rf /var/lib/apt/lists/*
 
-RUNsu-s/bin/bashnode-c'\
-exportHOME=/home/node;\
-exportHERMES_HOME=/home/node/.hermes;\
-exportPATH="$HOME/.local/bin:$PATH";\
-curl-fsSLhttps://hermes-agent.nousresearch.com/install.sh|\
-bash-s--\
---non-interactive\
---skip-browser\
---skip-computer-use\
---hermes-home/home/node/.hermes\
-'\
-&&test-x/home/node/.local/bin/hermes\
-&&ln-sf/home/node/.local/bin/hermes/usr/local/bin/hermes\
-&&su-s/bin/bashnode-c'\
-exportHOME=/home/node;\
-exportHERMES_HOME=/home/node/.hermes;\
-exportPATH="$HOME/.local/bin:$PATH";\
-hermes--version\
-'
+# Hermes Agent
+RUN mkdir -p /home/node/.hermes \
+    && chown -R node:node /home/node/.hermes \
+    && su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export HERMES_HOME=/home/node/.hermes; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | \
+          bash -s -- \
+            --non-interactive \
+            --skip-browser \
+            --skip-computer-use \
+            --hermes-home /home/node/.hermes \
+    ' \
+    && test -x /home/node/.local/bin/hermes \
+    && ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes
 
-RUNnpminstall-g--ignore-scripts@earendil-works/pi-coding-agent\
-&&pi--version
+# Pi coding agent
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
+    && pi --version
 
-RUNnpminstall-g@xai-official/grok\
-&&grok--version
+# Grok CLI
+RUN npm install -g @xai-official/grok \
+    && grok --version
 
-RUNsu-s/bin/bashnode-c'\
-exportHOME=/home/node;\
-exportPATH="$HOME/.local/bin:$PATH";\
-curl-fsSLhttps://cursor.com/install|bash\
-'\
-&&test-x/home/node/.local/bin/agent\
-&&ln-sf/home/node/.local/bin/agent/usr/local/bin/agent\
-&&su-s/bin/bashnode-c'\
-exportHOME=/home/node;\
-exportPATH="$HOME/.local/bin:$PATH";\
-agent--version\
-'
+# Cursor Agent CLI
+RUN su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        curl -fsSL https://cursor.com/install | bash \
+    ' \
+    && test -x /home/node/.local/bin/agent \
+    && ln -sf /home/node/.local/bin/agent /usr/local/bin/agent
 
-RUNmkdir-p/home/node/.hermes\
-&&chown-Rnode:node/home/node/.hermes
+# Seed Hermes configuration into the image.
+# The named Docker volume will copy this into /home/node/.hermes
+# when the volume is first created.
+RUN cat > /home/node/.hermes/config.yaml <<'EOF'
+model:
+  provider: custom:bifrost
+  default: hermes-main-free
+  context_length: 262144
 
-USERnode
+providers:
+  bifrost:
+    name: Bifrost
+    api: https://bifrost.phoenix-rtp.com/v1
+    key_env: BIFROST_API_KEY
+    transport: chat_completions
+    default_model: hermes-main-free
+    context_length: 262144
+    discover_models: true
+EOF
+
+RUN chown -R node:node /home/node/.hermes \
+    && chmod 0700 /home/node/.hermes \
+    && chmod 0600 /home/node/.hermes/config.yaml
+
+USER node
