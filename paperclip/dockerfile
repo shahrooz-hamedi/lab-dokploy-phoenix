@@ -10,6 +10,23 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HERMES_HOME=/home/node/.hermes \
     PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
+# ============================================================================
+# Runtime dependencies for the additional agent CLIs we intentionally add.
+#
+# The official Paperclip image already provides:
+#   Claude Code
+#   Codex
+#   OpenCode
+#   Gemini CLI
+#   Kimi Code
+#
+# We add:
+#   Hermes
+#   Pi
+#   Grok
+#   Cursor Agent
+# ============================================================================
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         python3 \
@@ -20,9 +37,17 @@ RUN apt-get update \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
+# ============================================================================
 # Hermes Agent
+# ============================================================================
+#
+# Install Hermes as the node user so its entire installation is already
+# owned correctly. This avoids the very expensive recursive chown that
+# previously took ~12 minutes.
+# ============================================================================
+
 RUN mkdir -p /home/node/.hermes \
-    && chown -R node:node /home/node/.hermes \
+    && chown node:node /home/node/.hermes \
     && su -s /bin/bash node -c '\
         export HOME=/home/node; \
         export HERMES_HOME=/home/node/.hermes; \
@@ -35,29 +60,57 @@ RUN mkdir -p /home/node/.hermes \
             --hermes-home /home/node/.hermes \
     ' \
     && test -x /home/node/.local/bin/hermes \
-    && ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes
+    && ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes \
+    && su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export HERMES_HOME=/home/node/.hermes; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        hermes --version \
+    '
 
-# Pi coding agent
+# ============================================================================
+# Pi
+# ============================================================================
+
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && pi --version
 
-# Grok CLI
+# ============================================================================
+# Grok
+# ============================================================================
+
 RUN npm install -g @xai-official/grok \
     && grok --version
 
-# Cursor Agent CLI
+# ============================================================================
+# Cursor Agent
+# ============================================================================
+
 RUN su -s /bin/bash node -c '\
         export HOME=/home/node; \
         export PATH="$HOME/.local/bin:$PATH"; \
         curl -fsSL https://cursor.com/install | bash \
     ' \
     && test -x /home/node/.local/bin/agent \
-    && ln -sf /home/node/.local/bin/agent /usr/local/bin/agent
+    && ln -sf /home/node/.local/bin/agent /usr/local/bin/agent \
+    && su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        agent --version \
+    '
 
-# Seed Hermes configuration into the image.
-# The named Docker volume will copy this into /home/node/.hermes
-# when the volume is first created.
-RUN cat > /home/node/.hermes/config.yaml <<'EOF'
+# ============================================================================
+# Hermes → Bifrost
+# ============================================================================
+#
+# This is Hermes configuration, NOT Paperclip configuration.
+#
+# Paperclip's official config remains owned by Paperclip itself.
+# Hermes reads this persistent config when the hermes_local adapter runs.
+# ============================================================================
+
+RUN su -s /bin/bash node -c '\
+        cat > /home/node/.hermes/config.yaml <<'"'"'EOF'"'"'
 model:
   provider: custom:bifrost
   default: hermes-main-free
@@ -73,9 +126,14 @@ providers:
     context_length: 262144
     discover_models: true
 EOF
-
-RUN chown -R node:node /home/node/.hermes \
+    ' \
     && chmod 0700 /home/node/.hermes \
+    && chown node:node /home/node/.hermes/config.yaml \
     && chmod 0600 /home/node/.hermes/config.yaml
+
+# ============================================================================
+# Return to the official Paperclip runtime user.
+# IMPORTANT: do not replace the official Paperclip ENTRYPOINT/CMD.
+# ============================================================================
 
 USER node
