@@ -116,8 +116,8 @@ services:
     pull_policy: never
     restart: unless-stopped
 
-    entrypoint: ["hermes"]
     command:
+      - hermes
       - dashboard
       - --host
       - 0.0.0.0
@@ -130,7 +130,10 @@ services:
       HERMES_HOME: /home/node/.hermes
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-      HERMES_DASHBOARD_PUBLIC_URL: https://ceo.phoenix-rtp.com
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${HERMES_DASHBOARD_BASIC_AUTH_USERNAME}
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH}
+      HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
+
       BIFROST_API_KEY: ${BIFROST_API_KEY}
 
     volumes:
