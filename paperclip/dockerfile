@@ -52,11 +52,15 @@ RUN su -s /bin/bash node -c '\
     '
 
 # Seed non-secret Hermes configuration.
+#
 # BIFROST_API_KEY is supplied at runtime through the environment.
+#
+# Hermes uses the named custom provider "bifrost", therefore the model itself
+# is the provider's model id: "main-free".
 RUN cat > /home/node/.hermes/config.yaml <<'EOF'
 model:
   provider: custom:bifrost
-  default: hermes-main-free
+  default: main-free
   context_length: 262144
 
 providers:
@@ -65,7 +69,7 @@ providers:
     api: https://bifrost.phoenix-rtp.com/v1
     key_env: BIFROST_API_KEY
     transport: chat_completions
-    default_model: hermes-main-free
+    default_model: main-free
     context_length: 262144
     discover_models: true
 EOF
