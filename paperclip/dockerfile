@@ -96,22 +96,22 @@ RUN mkdir -p /paperclip /home/node/.hermes \
 # ============================================================================
 # Paperclip startup
 #
-# Creates the persistent instance config from environment variables on the
-# first start. Existing config is preserved.
+# Creates the persistent Paperclip instance configuration only on first start.
+# Existing configuration is never overwritten.
 # ============================================================================
 
 RUN cat > /usr/local/bin/paperclip-start <<'EOF'
 #!/bin/bash
 set -euo pipefail
 
-INSTANCE_DIR="${PAPERCLIP_HOME}/instances/default"
+INSTANCE_DIR="${PAPERCLIP_HOME}/instances/${PAPERCLIP_INSTANCE_ID:-default}"
 CONFIG="${INSTANCE_DIR}/config.json"
 
 mkdir -p "${INSTANCE_DIR}"
 
-# ---------------------------------------------------------------------------
-# Validate required deployment secrets.
-# ---------------------------------------------------------------------------
+# ============================================================================
+# Validate required deployment values
+# ============================================================================
 
 if [ -z "${PAPERCLIP_SECRETS_MASTER_KEY:-}" ]; then
     echo "ERROR: PAPERCLIP_SECRETS_MASTER_KEY is required."
@@ -128,11 +128,21 @@ if [ -z "${DATABASE_URL:-}" ]; then
     exit 1
 fi
 
-# ---------------------------------------------------------------------------
-# First-start Paperclip configuration.
+if [ -z "${PAPERCLIP_AUTH_PUBLIC_BASE_URL:-}" ]; then
+    echo "ERROR: PAPERCLIP_AUTH_PUBLIC_BASE_URL is required."
+    exit 1
+fi
+
+if [ -z "${PORT:-}" ]; then
+    echo "ERROR: PORT is required."
+    exit 1
+fi
+
+# ============================================================================
+# First-start Paperclip configuration
 #
-# Never overwrite an existing config. This preserves the persistent instance.
-# ---------------------------------------------------------------------------
+# NEVER overwrite an existing config. The /paperclip volume is persistent.
+# ============================================================================
 
 if [ ! -f "${CONFIG}" ]; then
     echo "Paperclip config not found; creating deployment configuration..."
@@ -146,23 +156,21 @@ if [ ! -f "${CONFIG}" ]; then
   "database": {
     "mode": "postgres",
     "connectionString": "${DATABASE_URL}",
-    "embeddedPostgresDataDir": "/paperclip/instances/default/db",
-    "embeddedPostgresPort": 54329,
     "backup": {
       "enabled": false,
       "intervalMinutes": 60,
       "retentionDays": 30,
-      "dir": "/paperclip/instances/default/data/backups"
+      "dir": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/data/backups"
     }
   },
   "logging": {
     "mode": "file",
-    "logDir": "/paperclip/instances/default/logs"
+    "logDir": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/logs"
   },
   "server": {
     "deploymentMode": "${PAPERCLIP_DEPLOYMENT_MODE}",
     "exposure": "${PAPERCLIP_DEPLOYMENT_EXPOSURE}",
-    "bind": "lan",
+    "bind": "${PAPERCLIP_BIND}",
     "host": "0.0.0.0",
     "port": ${PORT},
     "allowedHostnames": [
@@ -184,7 +192,7 @@ if [ ! -f "${CONFIG}" ]; then
   "storage": {
     "provider": "local_disk",
     "localDisk": {
-      "baseDir": "/paperclip/instances/default/data/storage"
+      "baseDir": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/data/storage"
     },
     "s3": {
       "bucket": "paperclip",
@@ -197,7 +205,7 @@ if [ ! -f "${CONFIG}" ]; then
     "provider": "local_encrypted",
     "strictMode": true,
     "localEncrypted": {
-      "keyFilePath": "/paperclip/instances/default/secrets/master.key"
+      "keyFilePath": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/secrets/master.key"
     }
   }
 }
@@ -211,15 +219,23 @@ else
     echo "Using existing Paperclip configuration: ${CONFIG}"
 fi
 
-# ---------------------------------------------------------------------------
+# ============================================================================
 # Hermes configuration
-# ---------------------------------------------------------------------------
+#
+# IMPORTANT:
+# Only create the config on first start.
+# Never overwrite persistent Hermes configuration on container restart.
+# ============================================================================
 
 HERMES_CONFIG="${HERMES_HOME}/config.yaml"
 
 mkdir -p "${HERMES_HOME}"
+chown node:node "${HERMES_HOME}"
 
-cat > "${HERMES_CONFIG}" <<CONFIG
+if [ ! -f "${HERMES_CONFIG}" ]; then
+    echo "Hermes config not found; creating Bifrost configuration..."
+
+    cat > "${HERMES_CONFIG}" <<CONFIG
 model:
   provider: custom:bifrost
   default: ${BIFROST_SELECTED_MODEL}
@@ -236,19 +252,28 @@ providers:
     discover_models: true
 CONFIG
 
-chmod 0600 "${HERMES_CONFIG}"
+    chmod 0600 "${HERMES_CONFIG}"
+    chown node:node "${HERMES_CONFIG}"
 
-# ---------------------------------------------------------------------------
-# Start Paperclip.
-# PAPERCLIP_UI_DEV_MIDDLEWARE=false is supplied by Compose/.env, so `run`
-# does not force Vite development middleware.
-# ---------------------------------------------------------------------------
+    echo "Hermes configuration created."
+else
+    echo "Using existing Hermes configuration: ${HERMES_CONFIG}"
+fi
+
+# ============================================================================
+# Start Paperclip
+#
+# Production mode:
+#   - bundled UI
+#   - Vite dev middleware disabled
+#   - LAN binding for reverse proxy exposure
+# ============================================================================
 
 exec /app/cli/node_modules/.bin/tsx \
   /app/cli/src/index.ts \
   run \
   --bind \
-  lan
+  "${PAPERCLIP_BIND:-lan}"
 EOF
 
 RUN chmod 0755 /usr/local/bin/paperclip-start

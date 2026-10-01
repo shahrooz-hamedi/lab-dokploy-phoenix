@@ -45,30 +45,51 @@ services:
     environment:
       HOME: /home/node
       PAPERCLIP_HOME: /paperclip
+      PAPERCLIP_INSTANCE_ID: default
       HERMES_HOME: /home/node/.hermes
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-      # Critical: paperclipai run otherwise enables Vite dev middleware.
-      PAPERCLIP_UI_DEV_MIDDLEWARE: ${PAPERCLIP_UI_DEV_MIDDLEWARE}
-
-      # Explicitly keep the bundled UI enabled.
-      SERVE_UI: ${SERVE_UI}
+      # -----------------------------------------------------------------------
+      # Paperclip server
+      # -----------------------------------------------------------------------
+      PAPERCLIP_BIND: ${PAPERCLIP_BIND}
+      PAPERCLIP_API_URL: ${PAPERCLIP_API_URL}
+      PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL}
+      PAPERCLIP_AUTH_PUBLIC_BASE_URL: ${PAPERCLIP_AUTH_PUBLIC_BASE_URL}
 
       DATABASE_URL: ${DATABASE_URL}
 
+      # -----------------------------------------------------------------------
+      # Paperclip UI
+      # -----------------------------------------------------------------------
+      PAPERCLIP_UI_DEV_MIDDLEWARE: ${PAPERCLIP_UI_DEV_MIDDLEWARE}
+      SERVE_UI: ${SERVE_UI}
+
+      # -----------------------------------------------------------------------
+      # Bifrost
+      # -----------------------------------------------------------------------
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
       BIFROST_API_KEY: ${BIFROST_API_KEY}
       BIFROST_SELECTED_MODEL: ${BIFROST_SELECTED_MODEL}
 
+      # -----------------------------------------------------------------------
+      # OpenCode → Bifrost
+      # -----------------------------------------------------------------------
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}"},"models":{"${BIFROST_SELECTED_MODEL}":{}}}}
 
       PAPERCLIP_OPENCODE_SMALL_MODEL: bifrost/${BIFROST_SELECTED_MODEL}
 
+      # -----------------------------------------------------------------------
+      # Pi → Bifrost
+      # -----------------------------------------------------------------------
       PAPERCLIP_PI_PROVIDERS: >-
         {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}","api":"openai-completions","models":[{"id":"${BIFROST_SELECTED_MODEL}","name":"Bifrost selected model","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
 
+      # -----------------------------------------------------------------------
+      # Codex → Bifrost
+      # -----------------------------------------------------------------------
       PAPERCLIP_CODEX_PROVIDERS: >-
         {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}
 
