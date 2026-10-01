@@ -1,281 +1,74 @@
-ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
+ARGPAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
+FROM${PAPERCLIP_IMAGE}
 
-FROM ${PAPERCLIP_IMAGE}
+USERroot
 
-USER root
+ENVDEBIAN_FRONTEND=noninteractive\
+PIP_DISABLE_PIP_VERSION_CHECK=1\
+PYTHONDONTWRITEBYTECODE=1\
+HERMES_HOME=/home/node/.hermes
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    HOME=/home/node \
-    PAPERCLIP_HOME=/paperclip \
-    HERMES_HOME=/home/node/.hermes \
-    PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+RUNapt-getupdate\
+&&apt-getinstall-y--no-install-recommends\
+ca-certificates\
+curl\
+git\
+bash\
+jq\
+ripgrep\
+fd-find\
+unzip\
+zip\
+python3\
+python3-pip\
+python3-venv\
+build-essential\
+gnupg\
+&&rm-rf/var/lib/apt/lists/*
 
-# ============================================================================
-# Runtime dependencies
-# ============================================================================
+RUNmkdir-p/home/node/.hermes\
+&&chown-Rnode:node/home/node/.hermes
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        git \
-        bash \
-        jq \
-        ripgrep \
-        fd-find \
-        unzip \
-        zip \
-        python3 \
-        python3-pip \
-        python3-venv \
-        build-essential \
-        gnupg \
-    && rm -rf /var/lib/apt/lists/*
+RUNsu-s/bin/bashnode-c'\
+exportHOME=/home/node;\
+exportHERMES_HOME=/home/node/.hermes;\
+exportPATH="$HOME/.local/bin:$PATH";\
+curl-fsSLhttps://hermes-agent.nousresearch.com/install.sh|\
+bash-s--\
+--non-interactive\
+--skip-browser\
+--skip-computer-use\
+--hermes-home/home/node/.hermes\
+'\
+&&test-x/home/node/.local/bin/hermes\
+&&ln-sf/home/node/.local/bin/hermes/usr/local/bin/hermes\
+&&su-s/bin/bashnode-c'\
+exportHOME=/home/node;\
+exportHERMES_HOME=/home/node/.hermes;\
+exportPATH="$HOME/.local/bin:$PATH";\
+hermes--version\
+'
 
-# ============================================================================
-# Hermes Agent
-# ============================================================================
+RUNnpminstall-g--ignore-scripts@earendil-works/pi-coding-agent\
+&&pi--version
 
-RUN mkdir -p /home/node/.hermes \
-    && chown -R node:node /home/node/.hermes \
-    && su -s /bin/bash node -c '\
-        export HOME=/home/node; \
-        export HERMES_HOME=/home/node/.hermes; \
-        export PATH="$HOME/.local/bin:$PATH"; \
-        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | \
-            bash -s -- \
-                --non-interactive \
-                --skip-browser \
-                --skip-computer-use \
-                --hermes-home /home/node/.hermes \
-    ' \
-    && test -x /home/node/.local/bin/hermes \
-    && ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes \
-    && su -s /bin/bash node -c '\
-        export HOME=/home/node; \
-        export HERMES_HOME=/home/node/.hermes; \
-        export PATH="$HOME/.local/bin:$PATH"; \
-        hermes --version \
-    '
+RUNnpminstall-g@xai-official/grok\
+&&grok--version
 
-# ============================================================================
-# Additional local runtimes
-# ============================================================================
+RUNsu-s/bin/bashnode-c'\
+exportHOME=/home/node;\
+exportPATH="$HOME/.local/bin:$PATH";\
+curl-fsSLhttps://cursor.com/install|bash\
+'\
+&&test-x/home/node/.local/bin/agent\
+&&ln-sf/home/node/.local/bin/agent/usr/local/bin/agent\
+&&su-s/bin/bashnode-c'\
+exportHOME=/home/node;\
+exportPATH="$HOME/.local/bin:$PATH";\
+agent--version\
+'
 
-RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
-    && pi --version
+RUNmkdir-p/home/node/.hermes\
+&&chown-Rnode:node/home/node/.hermes
 
-RUN npm install -g @moonshot-ai/kimi-code \
-    && kimi --version
-
-RUN npm install -g @xai-official/grok \
-    && grok --version
-
-RUN su -s /bin/bash node -c '\
-        export HOME=/home/node; \
-        export PATH="$HOME/.local/bin:$PATH"; \
-        curl -fsSL https://cursor.com/install | bash \
-    ' \
-    && test -x /home/node/.local/bin/agent \
-    && ln -sf /home/node/.local/bin/agent /usr/local/bin/agent \
-    && su -s /bin/bash node -c '\
-        export HOME=/home/node; \
-        export PATH="$HOME/.local/bin:$PATH"; \
-        agent --version \
-    '
-
-# ============================================================================
-# Persistent directories
-# ============================================================================
-
-RUN mkdir -p /paperclip /home/node/.hermes \
-    && chown -R node:node /paperclip /home/node/.hermes
-
-# ============================================================================
-# Paperclip startup
-#
-# Creates the persistent Paperclip instance configuration only on first start.
-# Existing configuration is never overwritten.
-# ============================================================================
-
-RUN cat > /usr/local/bin/paperclip-start <<'EOF'
-#!/bin/bash
-set -euo pipefail
-
-INSTANCE_DIR="${PAPERCLIP_HOME}/instances/${PAPERCLIP_INSTANCE_ID:-default}"
-CONFIG="${INSTANCE_DIR}/config.json"
-
-mkdir -p "${INSTANCE_DIR}"
-
-# ============================================================================
-# Validate required deployment values
-# ============================================================================
-
-if [ -z "${PAPERCLIP_SECRETS_MASTER_KEY:-}" ]; then
-    echo "ERROR: PAPERCLIP_SECRETS_MASTER_KEY is required."
-    exit 1
-fi
-
-if [ -z "${PAPERCLIP_AGENT_JWT_SECRET:-}" ]; then
-    echo "ERROR: PAPERCLIP_AGENT_JWT_SECRET is required."
-    exit 1
-fi
-
-if [ -z "${DATABASE_URL:-}" ]; then
-    echo "ERROR: DATABASE_URL is required."
-    exit 1
-fi
-
-if [ -z "${PAPERCLIP_AUTH_PUBLIC_BASE_URL:-}" ]; then
-    echo "ERROR: PAPERCLIP_AUTH_PUBLIC_BASE_URL is required."
-    exit 1
-fi
-
-if [ -z "${PORT:-}" ]; then
-    echo "ERROR: PORT is required."
-    exit 1
-fi
-
-# ============================================================================
-# First-start Paperclip configuration
-#
-# NEVER overwrite an existing config. The /paperclip volume is persistent.
-# ============================================================================
-
-if [ ! -f "${CONFIG}" ]; then
-    echo "Paperclip config not found; creating deployment configuration..."
-
-    cat > "${CONFIG}" <<CONFIG
-{
-  "\$meta": {
-    "version": 1,
-    "source": "phoenix-deployment"
-  },
-  "database": {
-    "mode": "postgres",
-    "connectionString": "${DATABASE_URL}",
-    "backup": {
-      "enabled": false,
-      "intervalMinutes": 60,
-      "retentionDays": 30,
-      "dir": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/data/backups"
-    }
-  },
-  "logging": {
-    "mode": "file",
-    "logDir": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/logs"
-  },
-  "server": {
-    "deploymentMode": "${PAPERCLIP_DEPLOYMENT_MODE}",
-    "exposure": "${PAPERCLIP_DEPLOYMENT_EXPOSURE}",
-    "bind": "${PAPERCLIP_BIND}",
-    "host": "0.0.0.0",
-    "port": ${PORT},
-    "allowedHostnames": [
-      "${PAPERCLIP_ALLOWED_HOSTNAMES}"
-    ],
-    "serveUi": true
-  },
-  "telemetry": {
-    "enabled": false
-  },
-  "updates": {
-    "checkEnabled": false
-  },
-  "auth": {
-    "baseUrlMode": "${PAPERCLIP_AUTH_BASE_URL_MODE}",
-    "publicBaseUrl": "${PAPERCLIP_AUTH_PUBLIC_BASE_URL}",
-    "disableSignUp": false
-  },
-  "storage": {
-    "provider": "local_disk",
-    "localDisk": {
-      "baseDir": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/data/storage"
-    },
-    "s3": {
-      "bucket": "paperclip",
-      "region": "us-east-1",
-      "prefix": "",
-      "forcePathStyle": false
-    }
-  },
-  "secrets": {
-    "provider": "local_encrypted",
-    "strictMode": true,
-    "localEncrypted": {
-      "keyFilePath": "/paperclip/instances/${PAPERCLIP_INSTANCE_ID:-default}/secrets/master.key"
-    }
-  }
-}
-CONFIG
-
-    chmod 0600 "${CONFIG}"
-    chown node:node "${CONFIG}"
-
-    echo "Paperclip configuration created."
-else
-    echo "Using existing Paperclip configuration: ${CONFIG}"
-fi
-
-# ============================================================================
-# Hermes configuration
-#
-# IMPORTANT:
-# Only create the config on first start.
-# Never overwrite persistent Hermes configuration on container restart.
-# ============================================================================
-
-HERMES_CONFIG="${HERMES_HOME}/config.yaml"
-
-mkdir -p "${HERMES_HOME}"
-chown node:node "${HERMES_HOME}"
-
-if [ ! -f "${HERMES_CONFIG}" ]; then
-    echo "Hermes config not found; creating Bifrost configuration..."
-
-    cat > "${HERMES_CONFIG}" <<CONFIG
-model:
-  provider: custom:bifrost
-  default: ${BIFROST_SELECTED_MODEL}
-  context_length: 262144
-
-providers:
-  bifrost:
-    name: Bifrost
-    api: ${BIFROST_OPENAI_BASE_URL}
-    key_env: BIFROST_API_KEY
-    transport: chat_completions
-    default_model: ${BIFROST_SELECTED_MODEL}
-    context_length: 262144
-    discover_models: true
-CONFIG
-
-    chmod 0600 "${HERMES_CONFIG}"
-    chown node:node "${HERMES_CONFIG}"
-
-    echo "Hermes configuration created."
-else
-    echo "Using existing Hermes configuration: ${HERMES_CONFIG}"
-fi
-
-# ============================================================================
-# Start Paperclip
-#
-# Production mode:
-#   - bundled UI
-#   - Vite dev middleware disabled
-#   - LAN binding for reverse proxy exposure
-# ============================================================================
-
-exec /app/cli/node_modules/.bin/tsx \
-  /app/cli/src/index.ts \
-  run \
-  --bind \
-  "${PAPERCLIP_BIND:-lan}"
-EOF
-
-RUN chmod 0755 /usr/local/bin/paperclip-start
-
-USER node
+USERnode
