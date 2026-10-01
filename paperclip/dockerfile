@@ -10,26 +10,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HERMES_HOME=/home/node/.hermes \
     PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-# ============================================================================
-# Runtime dependencies
-# ============================================================================
-#
-# Official Paperclip image already provides:
-#   Claude Code
-#   Codex
-#   OpenCode
-#   Gemini CLI
-#   Kimi Code
-#
-# Additional runtimes intentionally installed here:
-#   Hermes
-#   Pi
-#   Grok
-#   Cursor Agent
-#
-# Do NOT replace the official Paperclip ENTRYPOINT/CMD.
-# ============================================================================
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         python3 \
@@ -40,17 +20,7 @@ RUN apt-get update \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
-# ============================================================================
-# Hermes Agent
-# ============================================================================
-#
-# Install as node so the installation is already owned by the runtime user.
-# Do not recursively chown the Hermes tree.
-#
-# Hermes configuration is intentionally NOT baked into the image.
-# The runtime mounts /home/node/.hermes as a persistent volume.
-# ============================================================================
-
+# Hermes
 RUN mkdir -p /home/node/.hermes \
     && chown node:node /home/node/.hermes \
     && su -s /bin/bash node -c '\
@@ -73,24 +43,36 @@ RUN mkdir -p /home/node/.hermes \
         hermes --version \
     '
 
-# ============================================================================
-# Pi coding agent
-# ============================================================================
+# Seed non-secret Hermes configuration.
+# BIFROST_API_KEY is supplied at runtime through the environment.
+RUN cat > /home/node/.hermes/config.yaml <<'EOF'
+model:
+  provider: custom:bifrost
+  default: hermes-main-free
+  context_length: 262144
 
+providers:
+  bifrost:
+    name: Bifrost
+    api: https://bifrost.phoenix-rtp.com/v1
+    key_env: BIFROST_API_KEY
+    transport: chat_completions
+    default_model: hermes-main-free
+    context_length: 262144
+    discover_models: true
+EOF
+RUN chown node:node /home/node/.hermes/config.yaml \
+    && chmod 600 /home/node/.hermes/config.yaml
+
+# Pi
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && pi --version
 
-# ============================================================================
-# Grok CLI
-# ============================================================================
-
+# Grok
 RUN npm install -g @xai-official/grok \
     && grok --version
 
-# ============================================================================
 # Cursor Agent
-# ============================================================================
-
 RUN su -s /bin/bash node -c '\
         export HOME=/home/node; \
         export PATH="$HOME/.local/bin:$PATH"; \
@@ -103,9 +85,5 @@ RUN su -s /bin/bash node -c '\
         export PATH="$HOME/.local/bin:$PATH"; \
         agent --version \
     '
-
-# ============================================================================
-# Return to official Paperclip runtime user
-# ============================================================================
 
 USER node
