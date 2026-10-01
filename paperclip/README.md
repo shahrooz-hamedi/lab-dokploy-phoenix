@@ -1,5 +1,3 @@
-##
-BEST COMMIT BEFORE ADDING CEO DASHBOARD
 
 Paperclip self-hosted deployment
 
@@ -127,3 +125,8 @@ The deployment has been validated with:
 * Grok: working
 * Cursor Agent: working
 * Paperclip container restart count: 0
+
+#
+Generate CEO Dashboard hashed password using:
+
+python3 -c 'import base64,hashlib,secrets; p="strongpassword"; salt=secrets.token_bytes(16); dk=hashlib.scrypt(p.encode(),salt=salt,n=2**14,r=8,p=1,dklen=32,maxmem=0); print(f"scrypt$16384$8$1${base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}")'
