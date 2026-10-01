@@ -72,12 +72,15 @@ services:
 
       TRUST_PROXY: ${TRUST_PROXY}
 
+      # Paperclip-side Bifrost credential.
+      # Internally exposed under the conventional BIFROST_API_KEY name
+      # so existing adapters continue to work unchanged.
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
-      BIFROST_API_KEY: ${BIFROST_API_KEY}
+      BIFROST_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       BIFROST_SELECTED_MODEL: ${BIFROST_SELECTED_MODEL}
 
-      ANTHROPIC_API_KEY: ${BIFROST_API_KEY}
+      ANTHROPIC_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -134,7 +137,10 @@ services:
       HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH}
       HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
 
-      BIFROST_API_KEY: ${BIFROST_API_KEY}
+      # CEO-only Bifrost credential.
+      # Hermes config.yaml intentionally continues to use
+      # key_env: BIFROST_API_KEY.
+      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
     volumes:
       - paperclip-hermes:/home/node/.hermes
