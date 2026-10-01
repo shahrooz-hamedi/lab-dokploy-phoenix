@@ -43,6 +43,14 @@ RUN mkdir -p /home/node/.hermes \
         hermes --version \
     '
 
+# Hermes Web Dashboard dependencies
+RUN su -s /bin/bash node -c '\
+        export HOME=/home/node; \
+        export HERMES_HOME=/home/node/.hermes; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        hermes pm install --extra web \
+    '
+
 # Seed non-secret Hermes configuration.
 # BIFROST_API_KEY is supplied at runtime through the environment.
 RUN cat > /home/node/.hermes/config.yaml <<'EOF'
@@ -61,6 +69,7 @@ providers:
     context_length: 262144
     discover_models: true
 EOF
+
 RUN chown node:node /home/node/.hermes/config.yaml \
     && chmod 600 /home/node/.hermes/config.yaml
 

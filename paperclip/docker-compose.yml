@@ -37,9 +37,6 @@ services:
         condition: service_healthy
 
     environment:
-      # -----------------------------------------------------------------------
-      # Base runtime
-      # -----------------------------------------------------------------------
       HOME: /home/node
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
@@ -50,9 +47,6 @@ services:
       PAPERCLIP_INSTANCE_ID: ${PAPERCLIP_INSTANCE_ID}
       HERMES_HOME: ${HERMES_HOME}
 
-      # -----------------------------------------------------------------------
-      # Paperclip URLs / binding
-      # -----------------------------------------------------------------------
       PAPERCLIP_BIND: ${PAPERCLIP_BIND}
       PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL}
       PAPERCLIP_API_URL: ${PAPERCLIP_API_URL}
@@ -61,14 +55,8 @@ services:
       PAPERCLIP_AUTH_BASE_URL_MODE: ${PAPERCLIP_AUTH_BASE_URL_MODE}
       PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES}
 
-      # -----------------------------------------------------------------------
-      # Database
-      # -----------------------------------------------------------------------
       DATABASE_URL: ${DATABASE_URL}
 
-      # -----------------------------------------------------------------------
-      # Paperclip deployment / security
-      # -----------------------------------------------------------------------
       SERVE_UI: ${SERVE_UI}
       PAPERCLIP_UI_DEV_MIDDLEWARE: ${PAPERCLIP_UI_DEV_MIDDLEWARE}
 
@@ -84,21 +72,14 @@ services:
 
       TRUST_PROXY: ${TRUST_PROXY}
 
-      # -----------------------------------------------------------------------
-      # Bifrost
-      # -----------------------------------------------------------------------
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
       BIFROST_API_KEY: ${BIFROST_API_KEY}
       BIFROST_SELECTED_MODEL: ${BIFROST_SELECTED_MODEL}
 
-      # Anthropic-compatible clients through Bifrost
       ANTHROPIC_API_KEY: ${BIFROST_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
-      # -----------------------------------------------------------------------
-      # Native / optional provider credentials
-      # -----------------------------------------------------------------------
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
 
@@ -112,28 +93,47 @@ services:
       KILO_API_KEY: ${KILO_API_KEY}
       CURSOR_API_KEY: ${CURSOR_API_KEY}
 
-      # -----------------------------------------------------------------------
-      # OpenCode → Bifrost
-      # -----------------------------------------------------------------------
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}"},"models":{"${BIFROST_SELECTED_MODEL}":{}}}}
 
       PAPERCLIP_OPENCODE_SMALL_MODEL: bifrost/${BIFROST_SELECTED_MODEL}
 
-      # -----------------------------------------------------------------------
-      # Pi → Bifrost
-      # -----------------------------------------------------------------------
       PAPERCLIP_PI_PROVIDERS: >-
         {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}","api":"openai-completions","models":[{"id":"${BIFROST_SELECTED_MODEL}","name":"Bifrost selected model","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
 
-      # -----------------------------------------------------------------------
-      # Codex → Bifrost
-      # -----------------------------------------------------------------------
       PAPERCLIP_CODEX_PROVIDERS: >-
         {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}
 
     volumes:
       - paperclip-data:/paperclip
+      - paperclip-hermes:/home/node/.hermes
+
+    networks:
+      - dokploy-network
+
+  hermes-dashboard:
+    image: paperclip-phoenix:2026.916.1
+    pull_policy: never
+    restart: unless-stopped
+
+    entrypoint: ["hermes"]
+    command:
+      - dashboard
+      - --host
+      - 0.0.0.0
+      - --port
+      - "9119"
+      - --no-open
+
+    environment:
+      HOME: /home/node
+      HERMES_HOME: /home/node/.hermes
+      PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+      HERMES_DASHBOARD_PUBLIC_URL: https://ceo.phoenix-rtp.com
+      BIFROST_API_KEY: ${BIFROST_API_KEY}
+
+    volumes:
       - paperclip-hermes:/home/node/.hermes
 
     networks:
