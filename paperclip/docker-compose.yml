@@ -72,73 +72,50 @@ services:
 
       TRUST_PROXY: ${TRUST_PROXY}
 
-      # -----------------------------------------------------------------------
-      # Bifrost
-      # -----------------------------------------------------------------------
-      #
-      # BIFROST_SELECTED_MODEL is the Paperclip-facing model reference:
-      #     bifrost/main-free
-      #
-      # The provider definitions below deliberately use the underlying model
-      # id "main-free" because the provider itself is already named "bifrost".
-      #
+      # =====================================================================
+      # Bifrost credentials
+      # =====================================================================
+
+      # Paperclip provider credential
+      BIFROST_PAPERCLIP_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
+
+      # Hermes/CEO credential
+      BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
+
+      # Hermes expects this environment variable.
+      # Therefore this MUST be the CEO credential.
+      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
+
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
-      BIFROST_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       BIFROST_SELECTED_MODEL: ${BIFROST_SELECTED_MODEL}
 
+      # Paperclip's Anthropic-compatible runtime
       ANTHROPIC_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
-      #OPENAI_API_KEY: ${OPENAI_API_KEY}
-      #OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-
-      #GEMINI_API_KEY: ${GEMINI_API_KEY}
-      #GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      #XAI_API_KEY: ${XAI_API_KEY}
-      #HF_TOKEN: ${HF_TOKEN}
-      #ZAI_API_KEY: ${ZAI_API_KEY}
-      #KIMI_MODEL_API_KEY: ${KIMI_MODEL_API_KEY}
-      #MINIMAX_API_KEY: ${MINIMAX_API_KEY}
-      #KILO_API_KEY: ${KILO_API_KEY}
-      #CURSOR_API_KEY: ${CURSOR_API_KEY}
-
-      # -----------------------------------------------------------------------
+      # =====================================================================
       # OpenCode
-      #
-      # Agent model reference:
-      #     bifrost/main-free
-      #
-      # Provider model registry:
-      #     main-free
-      # -----------------------------------------------------------------------
+      # =====================================================================
+
       PAPERCLIP_OPENCODE_PROVIDERS: >-
-        {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}"},"models":{"main-free":{}}}}
+        {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_PAPERCLIP_API_KEY}"},"models":{"main-free":{}}}}
 
       PAPERCLIP_OPENCODE_SMALL_MODEL: ${BIFROST_SELECTED_MODEL}
 
-      # -----------------------------------------------------------------------
+      # =====================================================================
       # Pi
-      #
-      # Paperclip agent model:
-      #     bifrost/main-free
-      #
-      # Pi provider registry:
-      #     provider = bifrost
-      #     model    = main-free
-      # -----------------------------------------------------------------------
-      PAPERCLIP_PI_PROVIDERS: >-
-        {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_API_KEY}","api":"openai-completions","models":[{"id":"main-free","name":"Bifrost main-free","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
+      # =====================================================================
 
-      # -----------------------------------------------------------------------
+      PAPERCLIP_PI_PROVIDERS: >-
+        {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_PAPERCLIP_API_KEY}","api":"openai-completions","models":[{"id":"main-free","name":"Bifrost main-free","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
+
+      # =====================================================================
       # Codex
-      #
-      # Codex separates provider from model:
-      #     model_provider = bifrost
-      #     model          = main-free
-      # -----------------------------------------------------------------------
+      # =====================================================================
+
       PAPERCLIP_CODEX_PROVIDERS: >-
-        {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}
+        {"providers":{"bifrost":{"name":"Bifrost","base_url":"${BIFROST_OPENAI_BASE_URL}","env_key":"BIFROST_PAPERCLIP_API_KEY","wire_api":"responses"}},"model_provider":"bifrost"}
 
     volumes:
       - paperclip-data:/paperclip
@@ -170,8 +147,7 @@ services:
       HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH}
       HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
 
-      # CEO-only Bifrost credential.
-      # Hermes config.yaml uses the named custom provider "bifrost".
+      # CEO-only Bifrost credential
       BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
     volumes:

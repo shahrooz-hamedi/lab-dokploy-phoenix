@@ -20,7 +20,10 @@ RUN apt-get update \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
+# =============================================================================
 # Hermes
+# =============================================================================
+
 RUN mkdir -p /home/node/.hermes \
     && chown node:node /home/node/.hermes \
     && su -s /bin/bash node -c '\
@@ -43,7 +46,10 @@ RUN mkdir -p /home/node/.hermes \
         hermes --version \
     '
 
+# =============================================================================
 # Hermes Web Dashboard dependencies
+# =============================================================================
+
 RUN su -s /bin/bash node -c '\
         export HOME=/home/node; \
         export HERMES_HOME=/home/node/.hermes; \
@@ -51,12 +57,10 @@ RUN su -s /bin/bash node -c '\
         hermes pm install --extra web \
     '
 
-# Seed non-secret Hermes configuration.
-#
-# BIFROST_API_KEY is supplied at runtime through the environment.
-#
-# Hermes uses the named custom provider "bifrost", therefore the model itself
-# is the provider's model id: "main-free".
+# =============================================================================
+# Hermes configuration
+# =============================================================================
+
 RUN cat > /home/node/.hermes/config.yaml <<'EOF'
 model:
   provider: custom:bifrost
@@ -77,15 +81,24 @@ EOF
 RUN chown node:node /home/node/.hermes/config.yaml \
     && chmod 600 /home/node/.hermes/config.yaml
 
+# =============================================================================
 # Pi
+# =============================================================================
+
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
     && pi --version
 
+# =============================================================================
 # Grok
+# =============================================================================
+
 RUN npm install -g @xai-official/grok \
     && grok --version
 
+# =============================================================================
 # Cursor Agent
+# =============================================================================
+
 RUN su -s /bin/bash node -c '\
         export HOME=/home/node; \
         export PATH="$HOME/.local/bin:$PATH"; \
