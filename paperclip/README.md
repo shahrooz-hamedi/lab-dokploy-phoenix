@@ -211,8 +211,24 @@ The deployment has been validated with:
 * Cursor Agent: working
 * Paperclip container restart count: 0
 
-## CEO Dashboard password hash
-
-Generate the CEO Dashboard password hash with:
-
+# CEO Dashboard password hash
+# Generate the CEO Dashboard password hash with:
 `python3 -c 'import base64,hashlib,secrets; p="strongpassword"; salt=secrets.token_bytes(16); dk=hashlib.scrypt(p.encode(),salt=salt,n=2**14,r=8,p=1,dklen=32,maxmem=0); print(f"scrypt$16384$8$1${base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}')`
+# Onboardin:
+PC=$(docker ps --filter "name=paperclip" --format '{{.Names}}' | grep -v postgres | head -1)
+
+docker exec -it --user node "$PC" sh -lc '
+  /app/cli/node_modules/.bin/tsx \
+    /app/cli/src/index.ts \
+    onboard
+'
+# Postgres Connection String:
+postgresql://paperclip:${POSTGRES_PASSWORD}@paperclip-postgres:5432/paperclip
+# Board Operator Cli Token:
+docker exec -it "$PC" sh -lc '
+  /app/cli/node_modules/.bin/tsx \
+    /app/cli/src/index.ts \
+    connect \
+    --persona board \
+    --api-base https://paperclip.phoenix-rtp.com
+'

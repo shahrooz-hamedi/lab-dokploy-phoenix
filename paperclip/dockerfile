@@ -1,3 +1,6 @@
+# =============================================================================
+# Paperclip image
+# =============================================================================
 ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
 
 FROM ${PAPERCLIP_IMAGE}
@@ -65,7 +68,7 @@ RUN cat > /home/node/.hermes/config.yaml <<'EOF'
 model:
   provider: custom:bifrost
   default: main-free
-  context_length: 262144
+  context_length: 1000000
 
 providers:
   bifrost:
@@ -74,8 +77,7 @@ providers:
     key_env: BIFROST_API_KEY
     transport: chat_completions
     default_model: main-free
-    context_length: 262144
-    discover_models: true
+    context_length: 1000000
 EOF
 
 RUN chown node:node /home/node/.hermes/config.yaml \

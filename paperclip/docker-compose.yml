@@ -76,15 +76,14 @@ services:
       # Bifrost credentials
       # =====================================================================
 
-      # Paperclip provider credential
+      # Paperclip credential
       BIFROST_PAPERCLIP_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
 
-      # Hermes/CEO credential
+      # CEO / Hermes credential
       BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
 
-      # Hermes expects this environment variable.
-      # Therefore this MUST be the CEO credential.
-      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
+      # Paperclip runtime uses the Paperclip credential
+      BIFROST_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
 
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
@@ -99,7 +98,7 @@ services:
       # =====================================================================
 
       PAPERCLIP_OPENCODE_PROVIDERS: >-
-        {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_PAPERCLIP_API_KEY}"},"models":{"main-free":{}}}}
+        {"bifrost":{"npm":"@ai-sdk/openai-compatible","name":"Bifrost","options":{"baseURL":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_PAPERCLIP_API_KEY}"},"models":{"main-free":{"contextWindow":1000000,"maxTokens":32768}}}}
 
       PAPERCLIP_OPENCODE_SMALL_MODEL: ${BIFROST_SELECTED_MODEL}
 
@@ -108,7 +107,7 @@ services:
       # =====================================================================
 
       PAPERCLIP_PI_PROVIDERS: >-
-        {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_PAPERCLIP_API_KEY}","api":"openai-completions","models":[{"id":"main-free","name":"Bifrost main-free","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}]}}
+        {"bifrost":{"baseUrl":"${BIFROST_OPENAI_BASE_URL}","apiKey":"{env:BIFROST_PAPERCLIP_API_KEY}","api":"openai-completions","models":[{"id":"main-free","name":"Bifrost main-free","reasoning":true,"input":["text"],"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":1000000,"maxTokens":32768}]}}
 
       # =====================================================================
       # Codex
