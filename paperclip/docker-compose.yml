@@ -76,14 +76,12 @@ services:
       # Bifrost credentials
       # =====================================================================
 
-      # Paperclip credential
       BIFROST_PAPERCLIP_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
 
-      # CEO / Hermes credential
       BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
 
-      # Paperclip runtime uses the Paperclip credential
-      BIFROST_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
+      # Hermes / CEO runtime
+      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
@@ -146,7 +144,6 @@ services:
       HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH}
       HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
 
-      # CEO-only Bifrost credential
       BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
     volumes:

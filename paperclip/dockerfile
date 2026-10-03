@@ -70,6 +70,12 @@ model:
   default: main-free
   context_length: 1000000
 
+model_aliases:
+  main-free:
+    model: openrouter/bifrost/main-free
+    provider: bifrost
+    key_env: BIFROST_API_KEY
+
 providers:
   bifrost:
     name: Bifrost
