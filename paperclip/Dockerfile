@@ -1,17 +1,25 @@
 # =============================================================================
 # Paperclip image
 # =============================================================================
+
 ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
 
 FROM ${PAPERCLIP_IMAGE}
 
 USER root
 
+ARG HERMES_VERSION=v2026.9.24
+ARG HERMES_COMMIT=f97608f178d1ffeca59860195ab7da295f7c8e5f
+
 ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/node \
     PAPERCLIP_HOME=/paperclip \
     HERMES_HOME=/home/node/.hermes \
     PATH=/home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# =============================================================================
+# OS dependencies
+# =============================================================================
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -24,21 +32,27 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
-# Hermes
+# Hermes Agent
+#
+# Pin the installer to the released Hermes tag and the exact release commit.
+# Do NOT install mutable main HEAD.
 # =============================================================================
 
 RUN mkdir -p /home/node/.hermes \
-    && chown node:node /home/node/.hermes \
+    && chown -R node:node /home/node/.hermes \
     && su -s /bin/bash node -c '\
+        set -eu; \
         export HOME=/home/node; \
         export HERMES_HOME=/home/node/.hermes; \
         export PATH="$HOME/.local/bin:$PATH"; \
-        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | \
-          bash -s -- \
-            --non-interactive \
-            --skip-browser \
-            --skip-computer-use \
-            --hermes-home /home/node/.hermes \
+        curl -fsSL \
+          "https://raw.githubusercontent.com/NousResearch/hermes-agent/${HERMES_VERSION}/scripts/install.sh" \
+          | bash -s -- \
+              --non-interactive \
+              --skip-browser \
+              --skip-computer-use \
+              --hermes-home /home/node/.hermes \
+              --commit "${HERMES_COMMIT}"; \
     ' \
     && test -x /home/node/.local/bin/hermes \
     && ln -sf /home/node/.local/bin/hermes /usr/local/bin/hermes \
@@ -54,6 +68,7 @@ RUN mkdir -p /home/node/.hermes \
 # =============================================================================
 
 RUN su -s /bin/bash node -c '\
+        set -eu; \
         export HOME=/home/node; \
         export HERMES_HOME=/home/node/.hermes; \
         export PATH="$HOME/.local/bin:$PATH"; \
@@ -61,13 +76,22 @@ RUN su -s /bin/bash node -c '\
     '
 
 # =============================================================================
-# Hermes configuration
+# Hermes initial configuration
+#
+# IMPORTANT:
+#   Bifrost_MODEL_ID is the actual model identifier sent to Bifrost.
+#   The runtime API key comes from BIFROST_API_KEY at container runtime.
+#
+# The config is intentionally provider-based:
+#
+#   model.provider = custom:bifrost
+#   providers.bifrost = named custom endpoint
 # =============================================================================
 
 RUN cat > /home/node/.hermes/config.yaml <<'EOF'
 model:
   provider: custom:bifrost
-  default: main-free
+  default: openrouter/bifrost/main-free
   context_length: 1000000
 
 providers:
@@ -76,7 +100,7 @@ providers:
     api: https://bifrost.phoenix-rtp.com/v1
     key_env: BIFROST_API_KEY
     transport: chat_completions
-    default_model: main-free
+    default_model: openrouter/bifrost/main-free
     context_length: 1000000
 EOF
 
@@ -87,14 +111,14 @@ RUN chown node:node /home/node/.hermes/config.yaml \
 # Pi
 # =============================================================================
 
-RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@1.0.0 \
     && pi --version
 
 # =============================================================================
 # Grok
 # =============================================================================
 
-RUN npm install -g @xai-official/grok \
+RUN npm install -g @xai-official/grok@1.0.46 \
     && grok --version
 
 # =============================================================================
@@ -102,6 +126,7 @@ RUN npm install -g @xai-official/grok \
 # =============================================================================
 
 RUN su -s /bin/bash node -c '\
+        set -eu; \
         export HOME=/home/node; \
         export PATH="$HOME/.local/bin:$PATH"; \
         curl -fsSL https://cursor.com/install | bash \
