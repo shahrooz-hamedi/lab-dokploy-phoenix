@@ -34,8 +34,7 @@ RUN apt-get update \
 # =============================================================================
 # Hermes Agent
 #
-# Pin the installer to the released Hermes tag and the exact release commit.
-# Do NOT install mutable main HEAD.
+# Pin the installer to the released Hermes tag and exact release commit.
 # =============================================================================
 
 RUN mkdir -p /home/node/.hermes \
@@ -64,10 +63,35 @@ RUN mkdir -p /home/node/.hermes \
     '
 
 # =============================================================================
+# Hermes Python dependencies
+#
+# The Hermes installer gives us the source tree, but the runtime Python
+# environment still needs the dependencies declared by Hermes' pyproject.toml.
+#
+# This is required by main_web_build.py, which imports pathspec when computing
+# the web UI content hash.
+# =============================================================================
+
+RUN su -s /bin/bash node -c '\
+        set -eu; \
+        export HOME=/home/node; \
+        export HERMES_HOME=/home/node/.hermes; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        cd /home/node/.hermes/hermes-agent; \
+        python3 -m pip install \
+            --user \
+            --break-system-packages \
+            .; \
+        python3 -c "import pathspec; print(\"pathspec\", pathspec.__version__)"; \
+    '
+
+# =============================================================================
 # Hermes Web Dashboard
 #
-# Build the web UI into the image so the dashboard does not need to perform
-# npm dependency installation against the persistent runtime volume.
+# Build the web UI into the image so the dashboard never needs to run npm
+# install against the persistent runtime volume.
+#
+# Hermes also requires web-ui-build-stamp.json to match the source-tree hash.
 # =============================================================================
 
 RUN su -s /bin/bash node -c '\
@@ -78,19 +102,25 @@ RUN su -s /bin/bash node -c '\
         cd /home/node/.hermes/hermes-agent; \
         npm install --workspace web --include=dev; \
         npm run build -w web; \
-        python3 -c "from pathlib import Path; from hermes_cli.main_web_build import _write_web_ui_build_stamp, _web_project_root; web=Path(\"/home/node/.hermes/hermes-agent/web\"); _write_web_ui_build_stamp(_web_project_root(web), web)" \
+        python3 -c "from pathlib import Path; from hermes_cli.main_web_build import _write_web_ui_build_stamp, _web_project_root, _web_ui_build_needed; web=Path(\"/home/node/.hermes/hermes-agent/web\"); _write_web_ui_build_stamp(_web_project_root(web), web); assert not _web_ui_build_needed(web), \"Hermes web UI build stamp is invalid\""; \
+    '
+
+# =============================================================================
+# Verify Hermes web build state at image-build time
+# =============================================================================
+
+RUN su -s /bin/bash node -c '\
+        set -eu; \
+        export HOME=/home/node; \
+        export HERMES_HOME=/home/node/.hermes; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        cd /home/node/.hermes/hermes-agent; \
+        test -f /home/node/.hermes/web-ui-build-stamp.json; \
+        python3 -c "from pathlib import Path; from hermes_cli.main_web_build import _web_ui_build_needed; web=Path(\"/home/node/.hermes/hermes-agent/web\"); print(\"Hermes web build needed:\", _web_ui_build_needed(web)); assert not _web_ui_build_needed(web)"; \
     '
 
 # =============================================================================
 # Hermes initial configuration
-#
-# Bifrost_MODEL_ID is the actual model identifier sent to Bifrost.
-# The runtime API key comes from BIFROST_API_KEY at container runtime.
-#
-# The config is intentionally provider-based:
-#
-#   model.provider = custom:bifrost
-#   providers.bifrost = named custom endpoint
 # =============================================================================
 
 RUN cat > /home/node/.hermes/config.yaml <<'EOF'
