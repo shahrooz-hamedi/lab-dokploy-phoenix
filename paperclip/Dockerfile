@@ -77,7 +77,8 @@ RUN su -s /bin/bash node -c '\
         export PATH="$HOME/.local/bin:$PATH"; \
         cd /home/node/.hermes/hermes-agent; \
         npm install --workspace web --include=dev; \
-        npm run build -w web \
+        npm run build -w web; \
+        python3 -c "from pathlib import Path; from hermes_cli.main_web_build import _write_web_ui_build_stamp, _web_project_root; web=Path(\"/home/node/.hermes/hermes-agent/web\"); _write_web_ui_build_stamp(_web_project_root(web), web)" \
     '
 
 # =============================================================================
