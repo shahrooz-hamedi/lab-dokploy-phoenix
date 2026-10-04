@@ -63,13 +63,14 @@ RUN mkdir -p /home/node/.hermes \
     '
 
 # =============================================================================
-# Hermes Python dependencies
+# Hermes Python runtime dependencies
 #
-# The Hermes installer gives us the source tree, but the runtime Python
-# environment still needs the dependencies declared by Hermes' pyproject.toml.
+# Hermes is already installed by its official shell installer above.
+# Do NOT `pip install .`: Hermes intentionally refuses wheel/sdist builds.
 #
-# This is required by main_web_build.py, which imports pathspec when computing
-# the web UI content hash.
+# Instead, install exactly the dependencies declared in Hermes'
+# [project].dependencies section. This includes pathspec==1.1.1, which is
+# required by main_web_build.py for calculating the web UI source hash.
 # =============================================================================
 
 RUN su -s /bin/bash node -c '\
@@ -78,11 +79,22 @@ RUN su -s /bin/bash node -c '\
         export HERMES_HOME=/home/node/.hermes; \
         export PATH="$HOME/.local/bin:$PATH"; \
         cd /home/node/.hermes/hermes-agent; \
+        python3 -c "\
+import tomllib; \
+from pathlib import Path; \
+data = tomllib.loads(Path(\"pyproject.toml\").read_text(encoding=\"utf-8\")); \
+Path(\"/tmp/hermes-runtime-requirements.txt\").write_text(\
+    \"\\n\".join(data[\"project\"][\"dependencies\"]) + \"\\n\",\
+    encoding=\"utf-8\"\
+); \
+print(\"Hermes dependencies:\", len(data[\"project\"][\"dependencies\"]))\
+"; \
         python3 -m pip install \
             --user \
             --break-system-packages \
-            .; \
+            -r /tmp/hermes-runtime-requirements.txt; \
         python3 -c "import pathspec; print(\"pathspec\", pathspec.__version__)"; \
+        rm -f /tmp/hermes-runtime-requirements.txt; \
     '
 
 # =============================================================================
@@ -91,7 +103,14 @@ RUN su -s /bin/bash node -c '\
 # Build the web UI into the image so the dashboard never needs to run npm
 # install against the persistent runtime volume.
 #
-# Hermes also requires web-ui-build-stamp.json to match the source-tree hash.
+# Hermes determines whether a rebuild is required using:
+#
+#   - web_dist existence
+#   - web-ui-build-stamp.json
+#   - source-tree content hash
+#
+# Generate the stamp only after the complete web build and verify it
+# immediately during the image build.
 # =============================================================================
 
 RUN su -s /bin/bash node -c '\
@@ -102,11 +121,25 @@ RUN su -s /bin/bash node -c '\
         cd /home/node/.hermes/hermes-agent; \
         npm install --workspace web --include=dev; \
         npm run build -w web; \
-        python3 -c "from pathlib import Path; from hermes_cli.main_web_build import _write_web_ui_build_stamp, _web_project_root, _web_ui_build_needed; web=Path(\"/home/node/.hermes/hermes-agent/web\"); _write_web_ui_build_stamp(_web_project_root(web), web); assert not _web_ui_build_needed(web), \"Hermes web UI build stamp is invalid\""; \
+        python3 -c "\
+from pathlib import Path; \
+from hermes_cli.main_web_build import (\
+    _write_web_ui_build_stamp,\
+    _web_project_root,\
+    _web_ui_build_needed,\
+); \
+web = Path(\"/home/node/.hermes/hermes-agent/web\"); \
+_write_web_ui_build_stamp(_web_project_root(web), web); \
+assert not _web_ui_build_needed(web), \"Hermes web UI build stamp is invalid\"; \
+print(\"Hermes web UI build: ready\")\
+"; \
     '
 
 # =============================================================================
 # Verify Hermes web build state at image-build time
+#
+# This makes the Docker build fail if the resulting image cannot satisfy
+# Hermes' runtime web-build check.
 # =============================================================================
 
 RUN su -s /bin/bash node -c '\
@@ -116,7 +149,14 @@ RUN su -s /bin/bash node -c '\
         export PATH="$HOME/.local/bin:$PATH"; \
         cd /home/node/.hermes/hermes-agent; \
         test -f /home/node/.hermes/web-ui-build-stamp.json; \
-        python3 -c "from pathlib import Path; from hermes_cli.main_web_build import _web_ui_build_needed; web=Path(\"/home/node/.hermes/hermes-agent/web\"); print(\"Hermes web build needed:\", _web_ui_build_needed(web)); assert not _web_ui_build_needed(web)"; \
+        python3 -c "\
+from pathlib import Path; \
+from hermes_cli.main_web_build import _web_ui_build_needed; \
+web = Path(\"/home/node/.hermes/hermes-agent/web\"); \
+needed = _web_ui_build_needed(web); \
+print(\"Hermes web build needed:\", needed); \
+assert not needed\
+"; \
     '
 
 # =============================================================================
