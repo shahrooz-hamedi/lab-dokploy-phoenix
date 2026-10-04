@@ -66,6 +66,8 @@ services:
       PAPERCLIP_AUTH_BASE_URL_MODE: ${PAPERCLIP_AUTH_BASE_URL_MODE}
       PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES}
 
+      PAPERCLIP_TELEMETRY_DISABLED: ${PAPERCLIP_TELEMETRY_DISABLED}
+
       # ---------------------------------------------------------------------
       # PostgreSQL
       # ---------------------------------------------------------------------
