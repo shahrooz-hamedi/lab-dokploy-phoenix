@@ -62,13 +62,29 @@ RUN mkdir -p /home/node/.hermes \
         export PATH="$HOME/.local/bin:$PATH"; \
         hermes --version \
     '
-    
+
+# =============================================================================
+# Hermes Web Dashboard
+#
+# Build the web UI into the image so the dashboard does not need to perform
+# npm dependency installation against the persistent runtime volume.
+# =============================================================================
+
+RUN su -s /bin/bash node -c '\
+        set -eu; \
+        export HOME=/home/node; \
+        export HERMES_HOME=/home/node/.hermes; \
+        export PATH="$HOME/.local/bin:$PATH"; \
+        cd /home/node/.hermes/hermes-agent; \
+        npm install --workspace web --include=dev; \
+        npm run build -w web \
+    '
+
 # =============================================================================
 # Hermes initial configuration
 #
-# IMPORTANT:
-#   Bifrost_MODEL_ID is the actual model identifier sent to Bifrost.
-#   The runtime API key comes from BIFROST_API_KEY at container runtime.
+# Bifrost_MODEL_ID is the actual model identifier sent to Bifrost.
+# The runtime API key comes from BIFROST_API_KEY at container runtime.
 #
 # The config is intentionally provider-based:
 #
