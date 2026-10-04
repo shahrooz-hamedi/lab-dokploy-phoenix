@@ -62,19 +62,7 @@ RUN mkdir -p /home/node/.hermes \
         export PATH="$HOME/.local/bin:$PATH"; \
         hermes --version \
     '
-
-# =============================================================================
-# Hermes Web Dashboard dependencies
-# =============================================================================
-
-RUN su -s /bin/bash node -c '\
-        set -eu; \
-        export HOME=/home/node; \
-        export HERMES_HOME=/home/node/.hermes; \
-        export PATH="$HOME/.local/bin:$PATH"; \
-        hermes pm install --extra web \
-    '
-
+    
 # =============================================================================
 # Hermes initial configuration
 #
