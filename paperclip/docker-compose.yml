@@ -50,20 +50,18 @@ services:
       HOME: /home/node
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
-      HOST: ${HOST}
-      PORT: ${PORT}
-
       PAPERCLIP_HOME: ${PAPERCLIP_HOME}
       PAPERCLIP_INSTANCE_ID: ${PAPERCLIP_INSTANCE_ID}
       HERMES_HOME: ${HERMES_HOME}
 
       PAPERCLIP_BIND: ${PAPERCLIP_BIND}
+      PORT: ${PORT}
+
       PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL}
       PAPERCLIP_API_URL: ${PAPERCLIP_API_URL}
       PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL: ${PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL}
 
       PAPERCLIP_AUTH_PUBLIC_BASE_URL: ${PAPERCLIP_AUTH_PUBLIC_BASE_URL}
-      PAPERCLIP_AUTH_BASE_URL_MODE: ${PAPERCLIP_AUTH_BASE_URL_MODE}
       PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES}
 
       PAPERCLIP_TELEMETRY_DISABLED: ${PAPERCLIP_TELEMETRY_DISABLED}
@@ -100,14 +98,12 @@ services:
       BIFROST_PAPERCLIP_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
 
-      # Hermes and any direct Hermes-compatible calls use the CEO key.
-      # Paperclip itself uses the Paperclip key.
+      # Hermes / CEO credential.
       BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
-      # Canonical Bifrost model ID.
       BIFROST_MODEL_ID: ${BIFROST_MODEL_ID}
 
       # Paperclip-facing Anthropic-compatible path.
@@ -116,10 +112,6 @@ services:
 
       # ---------------------------------------------------------------------
       # OpenCode
-      #
-      # OpenCode model references are provider/model.
-      # Provider = bifrost
-      # Model   = openrouter/bifrost/main-free
       # ---------------------------------------------------------------------
 
       PAPERCLIP_OPENCODE_PROVIDERS: >-
@@ -144,8 +136,6 @@ services:
 
       # ---------------------------------------------------------------------
       # Pi
-      #
-      # Pi model IDs are the actual upstream model IDs served by Bifrost.
       # ---------------------------------------------------------------------
 
       PAPERCLIP_PI_PROVIDERS: >-
@@ -175,9 +165,6 @@ services:
 
       # ---------------------------------------------------------------------
       # Codex
-      #
-      # Codex selects provider=bifrost and model from the Paperclip agent
-      # configuration. The model value must remain the canonical Bifrost ID.
       # ---------------------------------------------------------------------
 
       PAPERCLIP_CODEX_PROVIDERS: >-
@@ -227,7 +214,6 @@ services:
       HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH}
       HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
 
-      # The dashboard is CEO/Hermes-facing.
       BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
     volumes:
