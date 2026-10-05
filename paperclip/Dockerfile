@@ -28,9 +28,6 @@ RUN apt-get update \
 
 # =============================================================================
 # Hermes Agent
-#
-# Install Hermes using its official installer.
-# Paperclip's hermes_local adapter invokes the installed `hermes` executable.
 # =============================================================================
 
 RUN mkdir -p /home/node/.hermes \
