@@ -17,10 +17,9 @@ services:
           "CMD-SHELL",
           "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
         ]
-      interval: 10s
+      interval: 2s
       timeout: 5s
-      retries: 10
-      start_period: 20s
+      retries: 30
 
     networks:
       - dokploy-network
@@ -29,13 +28,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PAPERCLIP_IMAGE: ${PAPERCLIP_IMAGE}
-        HERMES_VERSION: ${HERMES_VERSION}
-        HERMES_COMMIT: ${HERMES_COMMIT}
 
-    image: paperclip-phoenix:2026.1001.0
-    pull_policy: never
+    image: paperclip-phoenix:2026.1001.0-hermes
+
     restart: unless-stopped
 
     depends_on:
@@ -43,78 +38,59 @@ services:
         condition: service_healthy
 
     environment:
-      HOME: /home/node
-      PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
+      PORT: "3100"
+      PAPERCLIP_BIND: lan
 
-      PAPERCLIP_HOME: ${PAPERCLIP_HOME}
-      PAPERCLIP_INSTANCE_ID: ${PAPERCLIP_INSTANCE_ID}
-      HERMES_HOME: ${HERMES_HOME}
+      PAPERCLIP_HOME: /paperclip
+      PAPERCLIP_INSTANCE_ID: default
 
-      PAPERCLIP_BIND: ${PAPERCLIP_BIND}
-      PORT: ${PORT}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@paperclip-postgres:5432/${POSTGRES_DB}
+
+      PAPERCLIP_DEPLOYMENT_MODE: authenticated
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: public
 
       PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL}
       PAPERCLIP_API_URL: ${PAPERCLIP_API_URL}
-      PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL: ${PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL}
-
       PAPERCLIP_AUTH_PUBLIC_BASE_URL: ${PAPERCLIP_AUTH_PUBLIC_BASE_URL}
       PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES}
-
-      PAPERCLIP_TELEMETRY_DISABLED: ${PAPERCLIP_TELEMETRY_DISABLED}
-
-      DATABASE_URL: postgresql://paperclip:${POSTGRES_PASSWORD}@paperclip-postgres:5432/${POSTGRES_DB}
-
-      SERVE_UI: ${SERVE_UI}
-      PAPERCLIP_UI_DEV_MIDDLEWARE: ${PAPERCLIP_UI_DEV_MIDDLEWARE}
-
-      PAPERCLIP_DEPLOYMENT_MODE: ${PAPERCLIP_DEPLOYMENT_MODE}
-      PAPERCLIP_DEPLOYMENT_EXPOSURE: ${PAPERCLIP_DEPLOYMENT_EXPOSURE}
-
-      PAPERCLIP_SECRETS_MASTER_KEY: ${PAPERCLIP_SECRETS_MASTER_KEY}
-      PAPERCLIP_SECRETS_STRICT_MODE: ${PAPERCLIP_SECRETS_STRICT_MODE}
 
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       PAPERCLIP_TOOL_ACTION_SIGNING_SECRET: ${PAPERCLIP_TOOL_ACTION_SIGNING_SECRET}
       PAPERCLIP_AGENT_JWT_SECRET: ${PAPERCLIP_AGENT_JWT_SECRET}
 
-      TRUST_PROXY: ${TRUST_PROXY}
+      PAPERCLIP_SECRETS_MASTER_KEY: ${PAPERCLIP_SECRETS_MASTER_KEY}
+      PAPERCLIP_SECRETS_STRICT_MODE: "true"
 
-      BIFROST_PAPERCLIP_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
-      BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
-      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
+      PAPERCLIP_TELEMETRY_DISABLED: "1"
 
-      BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
-      BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
-      BIFROST_MODEL_ID: ${BIFROST_MODEL_ID}
+      # Bifrost — OpenAI-compatible API
+      OPENAI_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
+      OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
 
+      # Bifrost — Anthropic-compatible API
       ANTHROPIC_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
-      PAPERCLIP_OPENCODE_PROVIDERS: >-
+      # Codex local -> Bifrost
+      PAPERCLIP_CODEX_PROVIDERS: >-
         {
-          "bifrost": {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "Bifrost",
-            "options": {
-              "baseURL": "${BIFROST_OPENAI_BASE_URL}",
-              "apiKey": "{env:BIFROST_PAPERCLIP_API_KEY}"
-            },
-            "models": {
-              "openrouter/bifrost/main-free": {
-                "contextWindow": 1000000,
-                "maxTokens": 32768
-              }
+          "providers": {
+            "bifrost": {
+              "name": "Bifrost",
+              "base_url": "${BIFROST_OPENAI_BASE_URL}",
+              "env_key": "OPENAI_API_KEY",
+              "wire_api": "responses"
             }
-          }
+          },
+          "model_provider": "bifrost"
         }
 
-      PAPERCLIP_OPENCODE_SMALL_MODEL: ${OPENCODE_MODEL_REF}
-
+      # Pi local -> Bifrost
       PAPERCLIP_PI_PROVIDERS: >-
         {
           "bifrost": {
             "baseUrl": "${BIFROST_OPENAI_BASE_URL}",
-            "apiKey": "{env:BIFROST_PAPERCLIP_API_KEY}",
+            "apiKey": "{env:OPENAI_API_KEY}",
             "api": "openai-completions",
             "models": [
               {
@@ -135,22 +111,33 @@ services:
           }
         }
 
-      PAPERCLIP_CODEX_PROVIDERS: >-
+      # OpenCode local -> Bifrost
+      PAPERCLIP_OPENCODE_PROVIDERS: >-
         {
-          "providers": {
-            "bifrost": {
-              "name": "Bifrost",
-              "base_url": "${BIFROST_OPENAI_BASE_URL}",
-              "env_key": "BIFROST_PAPERCLIP_API_KEY",
-              "wire_api": "responses"
+          "bifrost": {
+            "npm": "@ai-sdk/openai-compatible",
+            "name": "Bifrost",
+            "options": {
+              "baseURL": "${BIFROST_OPENAI_BASE_URL}",
+              "apiKey": "{env:OPENAI_API_KEY}"
+            },
+            "models": {
+              "openrouter/bifrost/main-free": {
+                "contextWindow": 1000000,
+                "maxTokens": 32768
+              }
             }
-          },
-          "model_provider": "bifrost"
+          }
         }
+
+      PAPERCLIP_OPENCODE_SMALL_MODEL: "bifrost/openrouter/bifrost/main-free"
+
+      # Allow OpenCode to use the explicitly configured gateway model
+      # even when it is absent from OpenCode's own catalog.
+      OPENCODE_ALLOW_ALL_MODELS: "true"
 
     volumes:
       - paperclip-data:/paperclip
-      - paperclip-hermes:/home/node/.hermes
 
     networks:
       - dokploy-network
@@ -167,4 +154,3 @@ networks:
 volumes:
   paperclip-data:
   paperclip-postgres:
-  paperclip-hermes:
