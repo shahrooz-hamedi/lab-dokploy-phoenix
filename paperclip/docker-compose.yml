@@ -43,10 +43,6 @@ services:
         condition: service_healthy
 
     environment:
-      # ---------------------------------------------------------------------
-      # Runtime
-      # ---------------------------------------------------------------------
-
       HOME: /home/node
       PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
 
@@ -66,15 +62,7 @@ services:
 
       PAPERCLIP_TELEMETRY_DISABLED: ${PAPERCLIP_TELEMETRY_DISABLED}
 
-      # ---------------------------------------------------------------------
-      # PostgreSQL
-      # ---------------------------------------------------------------------
-
       DATABASE_URL: postgresql://paperclip:${POSTGRES_PASSWORD}@paperclip-postgres:5432/${POSTGRES_DB}
-
-      # ---------------------------------------------------------------------
-      # UI / deployment
-      # ---------------------------------------------------------------------
 
       SERVE_UI: ${SERVE_UI}
       PAPERCLIP_UI_DEV_MIDDLEWARE: ${PAPERCLIP_UI_DEV_MIDDLEWARE}
@@ -91,28 +79,16 @@ services:
 
       TRUST_PROXY: ${TRUST_PROXY}
 
-      # ---------------------------------------------------------------------
-      # Bifrost
-      # ---------------------------------------------------------------------
-
       BIFROST_PAPERCLIP_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
-
-      # Hermes / CEO credential.
       BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
-
       BIFROST_MODEL_ID: ${BIFROST_MODEL_ID}
 
-      # Paperclip-facing Anthropic-compatible path.
       ANTHROPIC_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
-
-      # ---------------------------------------------------------------------
-      # OpenCode
-      # ---------------------------------------------------------------------
 
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {
@@ -133,10 +109,6 @@ services:
         }
 
       PAPERCLIP_OPENCODE_SMALL_MODEL: ${OPENCODE_MODEL_REF}
-
-      # ---------------------------------------------------------------------
-      # Pi
-      # ---------------------------------------------------------------------
 
       PAPERCLIP_PI_PROVIDERS: >-
         {
@@ -162,10 +134,6 @@ services:
             ]
           }
         }
-
-      # ---------------------------------------------------------------------
-      # Codex
-      # ---------------------------------------------------------------------
 
       PAPERCLIP_CODEX_PROVIDERS: >-
         {
