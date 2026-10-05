@@ -11,23 +11,15 @@ echo "$PC"
 
 ```bash
 docker exec "$PC" hermes --version
-
-docker exec "$PC" sh -lc '
-cat /home/node/.hermes/config.yaml
-'
 ```
 
 Expected:
 
 ```text
-Hermes Agent v0.21.5
+Hermes Agent v0.19.0
 ```
 
-```text
-openrouter/bifrost/main-free
-```
-
-## 3. Onboard
+## 3. Onboard Paperclip
 
 ```bash
 docker exec -it --user node "$PC" sh -lc '
@@ -35,7 +27,22 @@ docker exec -it --user node "$PC" sh -lc '
 '
 ```
 
-## 4. Connect board
+When prompted:
+
+```text
+◆ PostgreSQL connection string
+│ postgres://user:pass@localhost:5432/paperclip
+```
+
+Enter the actual Compose database connection:
+
+```text
+postgres://paperclip:YOUR_POSTGRES_PASSWORD@paperclip-postgres:5432/paperclip
+```
+
+Use the **same `POSTGRES_PASSWORD` configured in Dokploy**.
+
+## 4. Connect CLI as board
 
 ```bash
 docker exec -it "$PC" sh -lc '
@@ -102,12 +109,16 @@ adapterType: hermes_local
 heartbeat.enabled: false
 ```
 
-## Canonical models
+## Canonical model references
+
+Paperclip/Hermes:
 
 ```text
-Paperclip/Hermes:
 openrouter/bifrost/main-free
+```
 
 OpenCode:
+
+```text
 bifrost/openrouter/bifrost/main-free
 ```

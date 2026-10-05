@@ -63,15 +63,29 @@ services:
 
       PAPERCLIP_TELEMETRY_DISABLED: "1"
 
-      # Bifrost — OpenAI-compatible API
+      # ------------------------------------------------------------
+      # Bifrost — shared Paperclip OpenAI-compatible API
+      # ------------------------------------------------------------
       OPENAI_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
 
-      # Bifrost — Anthropic-compatible API
+      # ------------------------------------------------------------
+      # Bifrost — shared Paperclip Anthropic-compatible API
+      # ------------------------------------------------------------
       ANTHROPIC_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
+      # ------------------------------------------------------------
+      # Bifrost — dedicated CEO Hermes credential
+      #
+      # Hermes uses this through its named custom provider.
+      # The key itself is supplied by Dokploy env/secrets.
+      # ------------------------------------------------------------
+      BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
+
+      # ------------------------------------------------------------
       # Codex local -> Bifrost
+      # ------------------------------------------------------------
       PAPERCLIP_CODEX_PROVIDERS: >-
         {
           "providers": {
@@ -85,7 +99,11 @@ services:
           "model_provider": "bifrost"
         }
 
+      # ------------------------------------------------------------
       # Pi local -> Bifrost
+      # Canonical model ID:
+      # openrouter/bifrost/main-free
+      # ------------------------------------------------------------
       PAPERCLIP_PI_PROVIDERS: >-
         {
           "bifrost": {
@@ -111,7 +129,11 @@ services:
           }
         }
 
+      # ------------------------------------------------------------
       # OpenCode local -> Bifrost
+      # Canonical model ID:
+      # openrouter/bifrost/main-free
+      # ------------------------------------------------------------
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {
           "bifrost": {
@@ -130,6 +152,8 @@ services:
           }
         }
 
+      # Provider-qualified form:
+      # bifrost/openrouter/bifrost/main-free
       PAPERCLIP_OPENCODE_SMALL_MODEL: "bifrost/openrouter/bifrost/main-free"
 
       # Allow OpenCode to use the explicitly configured gateway model
