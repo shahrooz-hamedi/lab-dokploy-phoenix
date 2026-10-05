@@ -102,7 +102,7 @@ services:
 
       # Hermes and any direct Hermes-compatible calls use the CEO key.
       # Paperclip itself uses the Paperclip key.
-      BIFROST_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
+      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
 
       BIFROST_OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
       BIFROST_ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
