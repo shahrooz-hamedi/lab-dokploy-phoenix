@@ -2,21 +2,21 @@ FROM ghcr.io/paperclipai/paperclip:2026.1001.0
 
 USER root
 
-# Hermes' supported Linux installer requires curl and git.
+# System dependencies required by Hermes' supported installer.
+# libatomic1 is required by the managed Node.js runtime used by
+# the current Hermes package manager.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        curl \
        git \
+       libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Hermes Agent using the official Hermes installer.
+# Install Hermes Agent using the official supported Linux installer.
 #
-# - Runs as the Paperclip runtime user, not root.
-# - Uses Hermes' own managed Python/runtime environment.
-# - Keeps Hermes state under /home/node/.hermes.
-# - Non-interactive mode skips interactive setup/gateway installation.
-# - Browser tooling remains available to Hermes.
+# Hermes manages its own Python/Node/tool runtime under HERMES_HOME.
+# No pip/venv installation is used here.
 USER node
 
 ENV HOME=/home/node
