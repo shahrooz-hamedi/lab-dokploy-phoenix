@@ -2,7 +2,7 @@
 # Paperclip image
 # =============================================================================
 
-ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.916.1
+ARG PAPERCLIP_IMAGE=ghcr.io/paperclipai/paperclip:2026.1001.0
 
 FROM ${PAPERCLIP_IMAGE}
 
