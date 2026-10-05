@@ -155,41 +155,6 @@ services:
     networks:
       - dokploy-network
 
-  hermes-dashboard:
-    image: paperclip-phoenix:2026.916.1
-    pull_policy: never
-    restart: unless-stopped
-
-    depends_on:
-      paperclip:
-        condition: service_started
-
-    command:
-      - hermes
-      - dashboard
-      - --host
-      - 0.0.0.0
-      - --port
-      - "9119"
-      - --no-open
-
-    environment:
-      HOME: /home/node
-      HERMES_HOME: /home/node/.hermes
-      PATH: /home/node/.local/bin:/usr/local/bin:/usr/bin:/bin
-
-      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: ${HERMES_DASHBOARD_BASIC_AUTH_USERNAME}
-      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH: ${HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH}
-      HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_BASIC_AUTH_SECRET}
-
-      BIFROST_API_KEY: ${BIFROST_CEO_API_KEY}
-
-    volumes:
-      - paperclip-hermes:/home/node/.hermes
-
-    networks:
-      - dokploy-network
-
 networks:
   default:
     name: dokploy-network
