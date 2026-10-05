@@ -1,6 +1,6 @@
 services:
   bifrost:
-    image: maximhq/bifrost:v2.2.4
+    image: maximhq/bifrost:v2.2.5
     restart: unless-stopped
 
     environment:

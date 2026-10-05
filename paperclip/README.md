@@ -1,30 +1,15 @@
-# Paperclip Deployment
+# Paperclip — Post-Deploy Commands
 
-## 1. CEO dashboard password hash
-
-Generate the `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` value:
-
-```bash
-python3 -c 'import base64,hashlib,secrets; p="strongpassword"; salt=secrets.token_bytes(16); dk=hashlib.scrypt(p.encode(),salt=salt,n=2**14,r=8,p=1,dklen=32,maxmem=0); print(f"scrypt$16384$8$1${base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}")'
-```
-
-Set the result in Dokploy environment variables.
-
-## 2. Deploy
-
-Deploy the Compose application through Dokploy.
-
-For a clean installation, use fresh volumes:
-
-- `paperclip-data`
-- `paperclip-postgres`
-- `paperclip-hermes`
-
-## 3. Verify containers
+## 1. Get Paperclip container
 
 ```bash
 PC=$(docker ps --filter "name=paperclip" --format '{{.Names}}' | grep -v postgres | head -1)
+echo "$PC"
+```
 
+## 2. Verify Paperclip + Hermes
+
+```bash
 docker exec "$PC" hermes --version
 
 docker exec "$PC" sh -lc '
@@ -32,56 +17,97 @@ cat /home/node/.hermes/config.yaml
 '
 ```
 
-Expected Hermes version:
+Expected:
 
 ```text
-0.21.5
+Hermes Agent v0.21.5
 ```
-
-Expected model:
 
 ```text
 openrouter/bifrost/main-free
 ```
 
-## 4. Onboard
+## 3. Onboard
 
 ```bash
 docker exec -it --user node "$PC" sh -lc '
-/app/cli/node_modules/.bin/tsx \
-  /app/cli/src/index.ts \
-  onboard
+/app/cli/node_modules/.bin/tsx /app/cli/src/index.ts onboard
 '
 ```
 
-## 5. Board operator CLI token
+## 4. Connect board
 
 ```bash
 docker exec -it "$PC" sh -lc '
-/app/cli/node_modules/.bin/tsx \
-  /app/cli/src/index.ts \
+/app/cli/node_modules/.bin/tsx /app/cli/src/index.ts \
   connect \
   --persona board \
   --api-base https://paperclip.phoenix-rtp.com
 '
 ```
 
-## PostgreSQL
+Expected:
 
 ```text
-postgresql://paperclip:${POSTGRES_PASSWORD}@paperclip-postgres:5432/paperclip
+Connected profile 'default' as board.
 ```
 
-## Bifrost
+## 5. Create CEO
 
-Canonical model:
+```bash
+docker exec "$PC" sh -lc '
+CLI=/app/cli/node_modules/.bin/tsx
+APP=/app/cli/src/index.ts
+
+$CLI "$APP" agent create \
+  --company-id f9a66595-b99a-4296-b087-d78e176b8f35 \
+  --profile default \
+  --payload-json '"'"'{
+    "name": "CEO",
+    "role": "ceo",
+    "title": "Chief Executive Officer",
+    "icon": "crown",
+    "adapterType": "hermes_local",
+    "adapterConfig": {
+      "persistSession": true,
+      "quiet": true,
+      "timeoutSec": 1800,
+      "graceSec": 10
+    },
+    "onboardingFirstAgent": true
+  }'"'"' \
+  --json
+'
+```
+
+## 6. Verify CEO
+
+```bash
+docker exec "$PC" sh -lc '
+CLI=/app/cli/node_modules/.bin/tsx
+APP=/app/cli/src/index.ts
+
+$CLI "$APP" agent list \
+  --company-id f9a66595-b99a-4296-b087-d78e176b8f35 \
+  --json
+'
+```
+
+Expected:
 
 ```text
+role: ceo
+status: idle
+adapterType: hermes_local
+heartbeat.enabled: false
+```
+
+## Canonical models
+
+```text
+Paperclip/Hermes:
 openrouter/bifrost/main-free
-```
 
-OpenCode reference:
-
-```text
+OpenCode:
 bifrost/openrouter/bifrost/main-free
 ```
