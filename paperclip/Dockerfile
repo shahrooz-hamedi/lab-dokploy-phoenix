@@ -20,13 +20,17 @@ ENV HERMES_HOME=/home/node/.hermes
 ENV PATH=/home/node/.local/bin:${PATH}
 
 # ------------------------------------------------------------------
-# Install Hermes into the image.
+# Install Hermes.
 # ------------------------------------------------------------------
 RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
     | bash -s -- --non-interactive
 
 # ------------------------------------------------------------------
-# Configure Hermes to use the dedicated Bifrost CEO provider.
+# Configure Hermes.
+#
+# DO NOT CHANGE THESE VALUES:
+#   provider = custom:bifrost
+#   model    = openrouter/bifrost/main-free
 # ------------------------------------------------------------------
 RUN hermes config set model.provider custom:bifrost \
     && hermes config set model.default openrouter/bifrost/main-free \
@@ -36,8 +40,15 @@ RUN hermes config set model.provider custom:bifrost \
     && hermes config set --force providers.bifrost.discover_models true
 
 # ------------------------------------------------------------------
-# Preserve the complete Hermes installation/configuration in the
-# image. The runtime volume will be initialized from this seed.
+# Ensure Hermes' own PM-managed dependency environment is populated.
+#
+# This is intentionally Hermes PM, not pip/system Python.
+# ------------------------------------------------------------------
+RUN hermes pm install --trust-recorded
+
+# ------------------------------------------------------------------
+# Preserve the complete Hermes installation, including the PM-managed
+# dependency environments, in the image seed.
 # ------------------------------------------------------------------
 USER root
 
@@ -45,14 +56,13 @@ RUN cp -a /home/node/.hermes /opt/hermes-seed \
     && chown -R node:node /opt/hermes-seed
 
 # ------------------------------------------------------------------
-# Runtime wrapper.
+# Runtime entrypoint.
 #
-# The Paperclip image's official entrypoint expects the actual
-# Paperclip server command as "$@". We therefore provide the same
-# command that the official Paperclip Dockerfile provides.
+# The Hermes named volume hides /home/node/.hermes from the image,
+# therefore initialize a fresh volume from the image seed once.
 #
-# The wrapper itself runs as root so it can initialize the fresh
-# Hermes named volume and chown it to node before Paperclip starts.
+# The wrapper remains root because it must be able to chown the newly
+# created named volume before Paperclip starts as node.
 # ------------------------------------------------------------------
 RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
 #!/bin/sh
@@ -72,7 +82,6 @@ if [ ! -f "${HERMES_MARKER}" ]; then
     chown node:node "${HERMES_MARKER}"
 fi
 
-# Preserve Paperclip's official startup chain.
 exec /usr/bin/tini -- \
     /usr/local/bin/docker-entrypoint.sh \
     node --import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
@@ -80,6 +89,9 @@ EOF
 
 RUN chmod +x /usr/local/bin/paperclip-hermes-entrypoint
 
+# The entrypoint intentionally starts as root so it can initialize the
+# Hermes named volume. Paperclip's official entrypoint then handles the
+# application startup.
 USER root
 
 ENTRYPOINT ["/usr/local/bin/paperclip-hermes-entrypoint"]

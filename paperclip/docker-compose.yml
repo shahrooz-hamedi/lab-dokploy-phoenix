@@ -64,22 +64,19 @@ services:
       PAPERCLIP_TELEMETRY_DISABLED: "1"
 
       # ------------------------------------------------------------
-      # Bifrost — shared Paperclip OpenAI-compatible API
+      # Bifrost — Paperclip OpenAI-compatible API
       # ------------------------------------------------------------
       OPENAI_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       OPENAI_BASE_URL: ${BIFROST_OPENAI_BASE_URL}
 
       # ------------------------------------------------------------
-      # Bifrost — shared Paperclip Anthropic-compatible API
+      # Bifrost — Paperclip Anthropic-compatible API
       # ------------------------------------------------------------
       ANTHROPIC_API_KEY: ${BIFROST_PAPERCLIP_API_KEY}
       ANTHROPIC_BASE_URL: ${BIFROST_ANTHROPIC_BASE_URL}
 
       # ------------------------------------------------------------
       # Bifrost — dedicated CEO Hermes credential
-      #
-      # Hermes uses this through its named custom provider.
-      # The key itself is supplied by Dokploy env/secrets.
       # ------------------------------------------------------------
       BIFROST_CEO_API_KEY: ${BIFROST_CEO_API_KEY}
 
@@ -101,8 +98,6 @@ services:
 
       # ------------------------------------------------------------
       # Pi local -> Bifrost
-      # Canonical model ID:
-      # openrouter/bifrost/main-free
       # ------------------------------------------------------------
       PAPERCLIP_PI_PROVIDERS: >-
         {
@@ -131,8 +126,6 @@ services:
 
       # ------------------------------------------------------------
       # OpenCode local -> Bifrost
-      # Canonical model ID:
-      # openrouter/bifrost/main-free
       # ------------------------------------------------------------
       PAPERCLIP_OPENCODE_PROVIDERS: >-
         {
@@ -152,12 +145,8 @@ services:
           }
         }
 
-      # Provider-qualified form:
-      # bifrost/openrouter/bifrost/main-free
       PAPERCLIP_OPENCODE_SMALL_MODEL: "bifrost/openrouter/bifrost/main-free"
 
-      # Allow OpenCode to use the explicitly configured gateway model
-      # even when it is absent from OpenCode's own catalog.
       OPENCODE_ALLOW_ALL_MODELS: "true"
 
     volumes:
