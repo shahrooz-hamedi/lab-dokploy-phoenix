@@ -46,6 +46,13 @@ RUN cp -a /home/node/.hermes /opt/hermes-seed \
 
 # ------------------------------------------------------------------
 # Runtime wrapper.
+#
+# The Paperclip image's official entrypoint expects the actual
+# Paperclip server command as "$@". We therefore provide the same
+# command that the official Paperclip Dockerfile provides.
+#
+# The wrapper itself runs as root so it can initialize the fresh
+# Hermes named volume and chown it to node before Paperclip starts.
 # ------------------------------------------------------------------
 RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
 #!/bin/sh
@@ -66,7 +73,9 @@ if [ ! -f "${HERMES_MARKER}" ]; then
 fi
 
 # Preserve Paperclip's official startup chain.
-exec /usr/bin/tini -- /usr/local/bin/docker-entrypoint.sh "$@"
+exec /usr/bin/tini -- \
+    /usr/local/bin/docker-entrypoint.sh \
+    node --import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
 EOF
 
 RUN chmod +x /usr/local/bin/paperclip-hermes-entrypoint
