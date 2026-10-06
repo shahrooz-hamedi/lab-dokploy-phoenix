@@ -20,12 +20,13 @@ RUN apt-get update \
 # ------------------------------------------------------------
 # Global Python dependency required during Hermes installation
 #
-# Hermes performs bundled provider discovery during installation.
+# Hermes provider discovery can happen during installation.
 # Solstice imports httpx at that stage, before Hermes finishes
 # preparing its isolated runtime.
 #
-# Install uv explicitly into /usr/local/bin and use it to place
-# httpx into the system Python environment.
+# The Paperclip base image uses an externally-managed system
+# Python environment (PEP 668), so --break-system-packages is
+# required for this intentional Docker-image-level installation.
 # ------------------------------------------------------------
 
 RUN curl -LsSf https://astral.sh/uv/install.sh \
@@ -33,6 +34,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh \
     && /usr/local/bin/uv --version \
     && /usr/local/bin/uv pip install \
        --system \
+       --break-system-packages \
        --no-cache \
        httpx==0.28.1 \
     && python3 -c \
@@ -56,10 +58,6 @@ RUN curl -fsSL \
 # ------------------------------------------------------------
 # Verify the Hermes PM environment created by the
 # official installer.
-#
-# Hermes also creates its own managed environment containing
-# httpx. This verification confirms that environment remains
-# intact.
 # ------------------------------------------------------------
 
 RUN cd /home/node/.hermes/hermes-agent \
