@@ -36,18 +36,8 @@ RUN curl -fsSL \
 # Hermes managed Python environment
 #
 # Hermes creates and manages its own PM Python environment.
-# Install provider dependencies into THAT environment.
-#
-# Do NOT install these into system Python.
-# Do NOT remove bundled providers.
+# Do not modify the generated PM environment manually.
 # ------------------------------------------------------------
-
-RUN cd /home/node/.hermes/hermes-agent \
-    && PYTHON="$(python3 -c 'from pathlib import Path; from pm.environments import project_python; print(project_python(Path("/home/node/.hermes/hermes-agent")))')" \
-    && echo "Hermes PM Python: ${PYTHON}" \
-    && test -x "${PYTHON}" \
-    && "${PYTHON}" -m pip install --no-cache-dir --upgrade httpx \
-    && "${PYTHON}" -c 'import sys, httpx; print("Hermes runtime:", sys.executable); print("httpx:", httpx.__file__); print("httpx version:", httpx.__version__)'
 
 # ------------------------------------------------------------
 # Configure Hermes -> Bifrost
