@@ -10,6 +10,7 @@ RUN apt-get update \
        libatomic1 \
        libx11-6 \
        libxi6 \
+       libxkbcommon0 \
     && rm -rf /var/lib/apt/lists/*
 
 USER node
