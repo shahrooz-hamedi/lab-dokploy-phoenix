@@ -2,9 +2,9 @@ FROM ghcr.io/paperclipai/paperclip:2026.1001.0
 
 USER root
 
-# ------------------------------------------------------------
+# ============================================================
 # System prerequisites
-# ------------------------------------------------------------
+# ============================================================
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
@@ -16,56 +16,37 @@ RUN apt-get update \
        libxkbcommon0 \
     && rm -rf /var/lib/apt/lists/*
 
-# ------------------------------------------------------------
-# Hermes runs as the Paperclip "node" service user.
+# ============================================================
+# Hermes environment
 #
-# Hermes owns:
-#   - its source checkout
-#   - its PM tool store
-#   - its managed Python environment
-#   - its Python dependencies
-# ------------------------------------------------------------
+# Hermes owns its Python runtime and dependencies through PM.
+# Do NOT install Hermes Python packages with system pip.
+# ============================================================
 USER node
 
 ENV HOME=/home/node
 ENV HERMES_HOME=/home/node/.hermes
-ENV PATH=/home/node/.local/bin:${PATH}
+ENV PATH=/home/node/.local/bin:/home/node/.hermes/bin:${PATH}
 
-# ------------------------------------------------------------
-# Pi
+# ============================================================
+# Install Hermes using the official installer, stage by stage.
 #
-# Paperclip's pi_local adapter expects the `pi` CLI to already
-# exist in the container.
+# We deliberately separate python-deps and products.
 #
-# Pi is a Node CLI, independent of Hermes' Python environment.
-# Pin the version for reproducible Paperclip builds.
-# ------------------------------------------------------------
-USER root
+# python-deps:
+#   PM creates/synchronizes Hermes' managed Python environment.
+#
+# products:
+#   source_completion.py enters the PM-selected environment
+#   and performs provider/product completion.
+#
+# This lets us verify the actual PM environment before the
+# provider discovery which previously produced:
+#
+#   Failed to load bundled provider plugin solstice:
+#   No module named 'httpx'
+# ============================================================
 
-RUN npm install -g @earendil-works/pi-coding-agent@0.99.1 \
-    && command -v pi \
-    && pi --version
-
-USER node
-
-# ------------------------------------------------------------
-# Hermes installation
-#
-# We intentionally run the official installer by stage instead
-# of doing the entire installer in one opaque RUN.
-#
-# This lets us:
-#
-#   1. clone Hermes
-#   2. bootstrap Hermes PM
-#   3. install Hermes' locked Python environment
-#   4. explicitly repair that PM-managed environment
-#   5. verify httpx in the selected PM Python
-#   6. ONLY THEN run Hermes product/provider completion
-#
-# We do NOT pip-install httpx into system Python.
-# We do NOT modify Solstice to hide its dependency.
-# ------------------------------------------------------------
 RUN curl -fsSL \
       https://hermes-agent.nousresearch.com/install.sh \
       -o /tmp/hermes-install.sh \
@@ -83,75 +64,129 @@ RUN curl -fsSL \
          --stage python-deps \
     && rm -f /tmp/hermes-install.sh
 
-# ------------------------------------------------------------
-# Verify and repair the Hermes PM-managed dependency environment
-# BEFORE Hermes performs source/product completion.
+# ============================================================
+# Verify the PM-managed Hermes Python environment.
 #
-# Hermes documentation explicitly provides:
-#
-#   hermes pm repair
-#
-# for repairing the managed Python dependency generation.
-# ------------------------------------------------------------
-RUN /home/node/.hermes/hermes-agent/.hermes/bin/hermes pm repair
-
-# ------------------------------------------------------------
-# Hard build-time verification:
-#
-# The PM-selected Hermes Python must be able to import httpx.
-#
-# If this fails, the image build stops here instead of producing
-# an image with a hidden provider-environment problem.
-# ------------------------------------------------------------
+# This MUST resolve to Hermes PM's selected interpreter.
+# ============================================================
 RUN cd /home/node/.hermes/hermes-agent \
-    && python3 - <<'PY'
+    && python -c '
+import sys
+import pm
 from pathlib import Path
-
 from pm.environments import project_python
 
 root = Path("/home/node/.hermes/hermes-agent")
 python = project_python(root)
 
-print(f"PM project Python: {python}")
+print("=== HERMES PM ENVIRONMENT ===")
+print("python:", python)
+print("current interpreter:", sys.executable)
+print("pm:", pm.__file__)
 
 if not python.exists():
     raise SystemExit(f"PM project Python does not exist: {python}")
-PY
-
-RUN cd /home/node/.hermes/hermes-agent \
-    && PYTHON="$(
-         python3 - <<'PY'
-from pathlib import Path
-from pm.environments import project_python
-
-print(project_python(Path("/home/node/.hermes/hermes-agent")))
-PY
-       )" \
-    && "$PYTHON" -c '
-import sys
-import httpx
-
-print("Hermes PM Python:", sys.executable)
-print("httpx:", httpx.__file__)
-print("httpx version:", httpx.__version__)
 '
 
-# ------------------------------------------------------------
-# Now complete the official Hermes installation.
+# ============================================================
+# Verify httpx in the ACTUAL PM-selected interpreter.
 #
-# At this point PM has already created/repaired the dependency
-# environment and httpx has been verified in the selected
-# Hermes Python.
+# We do not use pip.
+# We do not modify Solstice.
+# We do not install httpx globally.
+# ============================================================
+RUN cd /home/node/.hermes/hermes-agent \
+    && python -c '
+from pathlib import Path
+import subprocess
+from pm.environments import project_python
+
+root = Path("/home/node/.hermes/hermes-agent")
+python = project_python(root)
+
+print("=== HERMES HTTPX CHECK ===")
+print("PM Python:", python)
+
+result = subprocess.run(
+    [
+        str(python),
+        "-c",
+        (
+            "import sys, httpx; "
+            "print(\"runtime:\", sys.executable); "
+            "print(\"httpx:\", httpx.__file__); "
+            "print(\"httpx version:\", httpx.__version__)"
+        ),
+    ],
+    check=False,
+)
+
+if result.returncode != 0:
+    raise SystemExit(
+        "Hermes PM environment cannot import httpx. "
+        "Refusing to continue to provider/product completion."
+    )
+'
+
+# ============================================================
+# Repair only through Hermes PM if the selected dependency
+# generation needs reconstruction.
 #
-# This is the stage at which Hermes builds/publishes its command
-# and performs provider/product completion.
-# ------------------------------------------------------------
+# PM documentation explicitly defines `pm repair` as the
+# supported repair operation for damaged dependencies.
+# ============================================================
+RUN hermes pm repair
+
+# ============================================================
+# Re-verify httpx AFTER PM repair.
+# ============================================================
+RUN cd /home/node/.hermes/hermes-agent \
+    && python -c '
+from pathlib import Path
+import subprocess
+from pm.environments import project_python
+
+root = Path("/home/node/.hermes/hermes-agent")
+python = project_python(root)
+
+subprocess.run(
+    [
+        str(python),
+        "-c",
+        (
+            "import sys, httpx; "
+            "print(\"Hermes PM Python:\", sys.executable); "
+            "print(\"httpx:\", httpx.__file__); "
+            "print(\"httpx version:\", httpx.__version__)"
+        ),
+    ],
+    check=True,
+)
+'
+
+# ============================================================
+# Complete Hermes product/provider installation.
+#
+# IMPORTANT:
+# There is NO Solstice patch here.
+#
+# The official source_completion implementation is responsible
+# for re-entering the PM-selected Python environment.
+# ============================================================
 RUN curl -fsSL \
       https://hermes-agent.nousresearch.com/install.sh \
       -o /tmp/hermes-install.sh \
     && bash /tmp/hermes-install.sh \
          --non-interactive \
          --stage products \
+    && rm -f /tmp/hermes-install.sh
+
+# ============================================================
+# Prepare Hermes configuration directories.
+# ============================================================
+RUN curl -fsSL \
+      https://hermes-agent.nousresearch.com/install.sh \
+      -o /tmp/hermes-install.sh \
     && bash /tmp/hermes-install.sh \
          --non-interactive \
          --stage config \
@@ -160,12 +195,12 @@ RUN curl -fsSL \
          --stage complete \
     && rm -f /tmp/hermes-install.sh
 
-# ------------------------------------------------------------
-# Configure Hermes to use Bifrost.
+# ============================================================
+# Configure Hermes -> Bifrost.
 #
-# These are the user's existing model/provider references.
-# Do not replace them with a raw provider model ID.
-# ------------------------------------------------------------
+# Keep the existing model/provider references exactly as used
+# by the deployment.
+# ============================================================
 RUN hermes config set --force model.provider custom:bifrost \
     && hermes config set --force model.default openrouter/bifrost/main-free \
     && hermes config set --force model.base_url https://bifrost.phoenix-rtp.com/v1 \
@@ -174,29 +209,46 @@ RUN hermes config set --force model.provider custom:bifrost \
     && hermes config set --force providers.bifrost.key_env BIFROST_CEO_API_KEY \
     && hermes config set --force providers.bifrost.discover_models true
 
-# ------------------------------------------------------------
-# Final Hermes verification.
-# ------------------------------------------------------------
+# ============================================================
+# Pi
+#
+# Paperclip's pi_local adapter requires the Pi CLI to be
+# installed in the Paperclip runtime.
+#
+# The current package has moved from the old @mariozechner
+# namespace to @earendil-works.
+#
+# Do not configure Pi's provider here. Paperclip supplies
+# PAPERCLIP_PI_PROVIDERS at runtime and writes its managed
+# models.json.
+# ============================================================
+USER root
+
+RUN npm install -g @earendil-works/pi-coding-agent \
+    && command -v pi \
+    && pi --version
+
+# ============================================================
+# Final executable verification
+# ============================================================
 RUN command -v hermes \
     && hermes --version \
     && command -v pi \
     && pi --version
 
-# ------------------------------------------------------------
-# Seed the complete Hermes installation.
+# ============================================================
+# Seed Hermes into /opt.
 #
-# Runtime uses a persistent Docker volume at /home/node/.hermes.
-# The first container start copies this fully prepared installation
-# into that volume.
-# ------------------------------------------------------------
-USER root
-
+# /home/node/.hermes is a persistent Docker volume at runtime.
+# The first startup copies this fully prepared installation into
+# that volume.
+# ============================================================
 RUN cp -a /home/node/.hermes /opt/hermes-seed \
     && chown -R node:node /opt/hermes-seed
 
-# ------------------------------------------------------------
+# ============================================================
 # Runtime entrypoint
-# ------------------------------------------------------------
+# ============================================================
 RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
 #!/bin/sh
 set -eu
@@ -215,13 +267,17 @@ if [ ! -f "${HERMES_MARKER}" ]; then
     chown node:node "${HERMES_MARKER}"
 fi
 
-# Keep the persistent Hermes configuration pointed at Bifrost.
-# Do this as the Hermes service user rather than root.
+# Run the Paperclip server as the same service user that owns
+# Hermes. This prevents root-owned Hermes state/configuration.
 exec su -s /bin/sh node -c '
+    set -eu
+
     export HOME=/home/node
     export HERMES_HOME=/home/node/.hermes
-    export PATH=/home/node/.local/bin:$PATH
+    export PATH=/home/node/.local/bin:/home/node/.hermes/bin:$PATH
 
+    # Persistent Hermes volumes may contain an older endpoint.
+    # Reassert Bifrost on every startup.
     hermes config set --force \
       model.base_url https://bifrost.phoenix-rtp.com/v1
 
