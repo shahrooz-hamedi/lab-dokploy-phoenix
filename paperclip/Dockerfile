@@ -28,6 +28,79 @@ RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
     | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
+# Solstice provider bootstrap fix
+#
+# Hermes discovers bundled model-provider plugins while the
+# installation environment is still being prepared.
+#
+# Solstice's __init__.py eagerly imports transport.py:
+#
+#   from .transport import INFERENCE_BASE_URL, SolsticeClient
+#
+# transport.py ultimately depends on the Gemini adapter/httpx.
+# This causes provider discovery to fail with:
+#
+#   Failed to load bundled provider plugin solstice:
+#   No module named 'httpx'
+#
+# Keep Solstice fully installed and functional, but defer the
+# SolsticeClient import until create_client() is actually called.
+# ------------------------------------------------------------
+RUN python3 - <<'PY'
+from pathlib import Path
+
+p = Path("/home/node/.hermes/hermes-agent/plugins/model-providers/solstice/__init__.py")
+
+text = p.read_text()
+
+old_import = "from .transport import INFERENCE_BASE_URL, SolsticeClient"
+new_import = 'INFERENCE_BASE_URL = "https://generativelanguage.googleapis.com/v1alpha"'
+
+if old_import not in text:
+    raise SystemExit(
+        "Expected Solstice import was not found; refusing to modify the file."
+    )
+
+text = text.replace(old_import, new_import, 1)
+
+old_create = '''class SolsticeProfile(ProviderProfile):
+    def create_client(self, **client_kwargs: Any) -> Any:
+        allowed = {"api_key", "base_url", "default_headers", "timeout", "http_client"}
+        return SolsticeClient(**{k: v for k, v in client_kwargs.items() if k in allowed})
+'''
+
+new_create = '''class SolsticeProfile(ProviderProfile):
+    def create_client(self, **client_kwargs: Any) -> Any:
+        from .transport import SolsticeClient
+
+        allowed = {"api_key", "base_url", "default_headers", "timeout", "http_client"}
+        return SolsticeClient(**{k: v for k, v in client_kwargs.items() if k in allowed})
+'''
+
+if old_create not in text:
+    raise SystemExit(
+        "Expected Solstice create_client() block was not found; refusing to modify the file."
+    )
+
+text = text.replace(old_create, new_create, 1)
+
+p.write_text(text)
+PY
+
+# Keep the duplicated installed workspace in sync with the source tree
+# used by Hermes' isolated runtime.
+RUN python3 - <<'PY'
+from pathlib import Path
+
+src = Path("/home/node/.hermes/hermes-agent/plugins/model-providers/solstice/__init__.py")
+
+for p in Path("/home/node/.hermes/installs").glob(
+    "*/environments/*/workspace/plugins/model-providers/solstice/__init__.py"
+):
+    p.write_text(src.read_text())
+PY
+
+# ------------------------------------------------------------
 # Configure Hermes to use the named Bifrost provider.
 #
 # Bifrost remains the only inference gateway.
