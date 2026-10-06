@@ -18,6 +18,23 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------
+# Hermes bootstrap
+#
+# Hermes provider discovery can happen during the official
+# installer before Hermes has finished preparing its isolated
+# runtime. Solstice requires httpx at that stage.
+#
+# Make httpx available to the global Python environment first.
+# ------------------------------------------------------------
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && /root/.local/bin/uv pip install \
+       --system \
+       --no-cache \
+       httpx==0.28.1 \
+    && python3 -c 'import httpx; print("Global httpx:", httpx.__file__); print("Global httpx version:", httpx.__version__)'
+
+# ------------------------------------------------------------
 # Hermes
 # Install and configure Hermes entirely as node.
 # ------------------------------------------------------------
@@ -33,12 +50,10 @@ RUN curl -fsSL \
       | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
-# Verify the Hermes PM environment created by the
-# official installer.
+# Verify Hermes PM environment
 #
-# The official Hermes installer already provides httpx
-# in this managed environment. Do not install packages
-# into system Python or globally.
+# The official installer creates the managed environment and
+# provides its own httpx there as well.
 # ------------------------------------------------------------
 
 RUN cd /home/node/.hermes/hermes-agent \
