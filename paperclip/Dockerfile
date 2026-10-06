@@ -1,5 +1,9 @@
 FROM ghcr.io/paperclipai/paperclip:2026.1001.0
 
+# ------------------------------------------------------------
+# OS dependencies
+# ------------------------------------------------------------
+
 USER root
 
 RUN apt-get update \
@@ -15,6 +19,7 @@ RUN apt-get update \
 
 # ------------------------------------------------------------
 # Hermes
+# Install and configure Hermes entirely as node.
 # ------------------------------------------------------------
 
 USER node
@@ -28,8 +33,8 @@ RUN curl -fsSL \
       | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
-# Verify the Hermes PM environment that the official installer
-# created. This is the important test.
+# Verify the Hermes PM environment created by the
+# official installer.
 # ------------------------------------------------------------
 
 RUN cd /home/node/.hermes/hermes-agent \
@@ -61,51 +66,34 @@ RUN npm install -g @earendil-works/pi-coding-agent \
     && pi --version
 
 # ------------------------------------------------------------
-# Seed Hermes installation for the persistent runtime volume
+# Runtime
+#
+# Return to node permanently.
+#
+# The /home/node/.hermes directory is already owned by node.
+# When Docker mounts a NEW empty named volume at this path,
+# Docker initializes the volume from the image contents.
+#
+# Therefore there is no root-time volume bootstrap, no cp,
+# no chown, and no su.
 # ------------------------------------------------------------
 
-RUN cp -a /home/node/.hermes /opt/hermes-seed \
-    && chown -R node:node /opt/hermes-seed
+USER node
 
-# ------------------------------------------------------------
-# Runtime entrypoint
-# ------------------------------------------------------------
-
-RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
+RUN cat > /home/node/paperclip-hermes-entrypoint <<'EOF'
 #!/bin/sh
 set -eu
 
-HERMES_HOME="/home/node/.hermes"
-HERMES_SEED="/opt/hermes-seed"
-HERMES_MARKER="${HERMES_HOME}/.hermes-bootstrap-complete"
+export HOME=/home/node
+export HERMES_HOME=/home/node/.hermes
+export PATH=/home/node/.local/bin:$PATH
 
-if [ ! -f "${HERMES_MARKER}" ]; then
-    echo "Initializing persistent Hermes home..."
-
-    cp -a "${HERMES_SEED}/." "${HERMES_HOME}/"
-    chown -R node:node "${HERMES_HOME}"
-
-    touch "${HERMES_MARKER}"
-    chown node:node "${HERMES_MARKER}"
-fi
-
-exec su -s /bin/sh node -c '
-    set -eu
-
-    export HOME=/home/node
-    export HERMES_HOME=/home/node/.hermes
-    export PATH=/home/node/.local/bin:$PATH
-
-    hermes config set --force \
-      model.base_url https://bifrost.phoenix-rtp.com/v1
-
-    exec /usr/bin/tini -- \
-      /usr/local/bin/docker-entrypoint.sh \
-      node --import ./server/node_modules/tsx/dist/loader.mjs \
-      server/dist/index.js
-'
+exec /usr/bin/tini -- \
+  /usr/local/bin/docker-entrypoint.sh \
+  node --import ./server/node_modules/tsx/dist/loader.mjs \
+  server/dist/index.js
 EOF
 
-RUN chmod +x /usr/local/bin/paperclip-hermes-entrypoint
+RUN chmod +x /home/node/paperclip-hermes-entrypoint
 
-ENTRYPOINT ["/usr/local/bin/paperclip-hermes-entrypoint"]
+ENTRYPOINT ["/home/node/paperclip-hermes-entrypoint"]
