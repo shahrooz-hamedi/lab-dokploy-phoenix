@@ -18,31 +18,35 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------
-# Global Python dependency required during Hermes installation
+# Hermes installer bootstrap dependencies
 #
-# Hermes provider discovery can happen during installation.
-# Solstice imports httpx at that stage, before Hermes finishes
-# preparing its isolated runtime.
+# Hermes performs bundled model-provider discovery during its
+# installation process. The bundled Solstice provider imports
+# httpx before Hermes has finished preparing its isolated
+# runtime.
 #
-# The Paperclip base image uses an externally-managed system
-# Python environment (PEP 668), so --break-system-packages is
-# required for this intentional Docker-image-level installation.
+# Do NOT rely on the base image's system Python site-packages.
+# Instead, install httpx and its dependencies into a dedicated
+# bootstrap directory and expose it through PYTHONPATH.
+#
+# This makes httpx available to the Python interpreter used by
+# the Hermes installer/provider discovery regardless of which
+# system Python path that interpreter uses.
 # ------------------------------------------------------------
 
 RUN curl -LsSf https://astral.sh/uv/install.sh \
       | env UV_INSTALL_DIR=/usr/local/bin sh \
     && /usr/local/bin/uv --version \
+    && mkdir -p /opt/hermes-bootstrap \
     && /usr/local/bin/uv pip install \
-       --system \
-       --break-system-packages \
+       --target /opt/hermes-bootstrap \
        --no-cache \
        httpx==0.28.1 \
     && python3 -c \
-       'import httpx; print("Global httpx:", httpx.__file__); print("Global httpx version:", httpx.__version__)'
+       'import sys; sys.path.insert(0, "/opt/hermes-bootstrap"); import httpx; print("Bootstrap Python:", sys.executable); print("Bootstrap httpx:", httpx.__file__); print("Bootstrap httpx version:", httpx.__version__)'
 
 # ------------------------------------------------------------
 # Hermes
-# Install and configure Hermes entirely as node.
 # ------------------------------------------------------------
 
 USER node
@@ -50,13 +54,26 @@ USER node
 ENV HOME=/home/node
 ENV HERMES_HOME=/home/node/.hermes
 ENV PATH=/home/node/.local/bin:${PATH}
+ENV PYTHONPATH=/opt/hermes-bootstrap
+
+# ------------------------------------------------------------
+# Verify the bootstrap dependency from the same USER/environment
+# that will execute the Hermes installer.
+# ------------------------------------------------------------
+
+RUN python3 -c \
+    'import sys, httpx; print("Hermes installer Python:", sys.executable); print("Bootstrap httpx:", httpx.__file__); print("Bootstrap httpx version:", httpx.__version__)'
+
+# ------------------------------------------------------------
+# Install Hermes
+# ------------------------------------------------------------
 
 RUN curl -fsSL \
       https://hermes-agent.nousresearch.com/install.sh \
       | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
-# Verify the Hermes PM environment created by the
+# Verify the isolated Hermes PM environment created by the
 # official installer.
 # ------------------------------------------------------------
 
