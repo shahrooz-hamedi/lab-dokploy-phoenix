@@ -37,19 +37,16 @@ RUN hermes config set model.provider custom:bifrost \
 
 # ------------------------------------------------------------------
 # Preserve the complete Hermes installation/configuration in the
-# image. At runtime this is copied into the persistent hermes-data
-# volume on its first initialization.
-# ------------------------------------------------------------------
-RUN cp -a /home/node/.hermes /opt/hermes-seed
-
-# ------------------------------------------------------------------
-# Runtime wrapper.
-#
-# The official Paperclip entrypoint remains responsible for starting
-# Paperclip. We only initialize the persistent Hermes volume first.
+# image. The runtime volume will be initialized from this seed.
 # ------------------------------------------------------------------
 USER root
 
+RUN cp -a /home/node/.hermes /opt/hermes-seed \
+    && chown -R node:node /opt/hermes-seed
+
+# ------------------------------------------------------------------
+# Runtime wrapper.
+# ------------------------------------------------------------------
 RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
 #!/bin/sh
 set -eu
@@ -68,11 +65,12 @@ if [ ! -f "${HERMES_MARKER}" ]; then
     chown node:node "${HERMES_MARKER}"
 fi
 
-# Preserve Paperclip's official startup chain:
-# tini -> docker-entrypoint.sh -> Paperclip's original CMD
+# Preserve Paperclip's official startup chain.
 exec /usr/bin/tini -- /usr/local/bin/docker-entrypoint.sh "$@"
 EOF
 
 RUN chmod +x /usr/local/bin/paperclip-hermes-entrypoint
+
+USER node
 
 ENTRYPOINT ["/usr/local/bin/paperclip-hermes-entrypoint"]
