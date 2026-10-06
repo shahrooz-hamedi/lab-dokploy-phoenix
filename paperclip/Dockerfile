@@ -18,21 +18,25 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------
-# Hermes bootstrap
+# Global Python dependency required during Hermes installation
 #
-# Hermes provider discovery can happen during the official
-# installer before Hermes has finished preparing its isolated
-# runtime. Solstice requires httpx at that stage.
+# Hermes performs bundled provider discovery during installation.
+# Solstice imports httpx at that stage, before Hermes finishes
+# preparing its isolated runtime.
 #
-# Make httpx available to the global Python environment first.
+# Install uv explicitly into /usr/local/bin and use it to place
+# httpx into the system Python environment.
 # ------------------------------------------------------------
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && /root/.local/bin/uv pip install \
+RUN curl -LsSf https://astral.sh/uv/install.sh \
+      | env UV_INSTALL_DIR=/usr/local/bin sh \
+    && /usr/local/bin/uv --version \
+    && /usr/local/bin/uv pip install \
        --system \
        --no-cache \
        httpx==0.28.1 \
-    && python3 -c 'import httpx; print("Global httpx:", httpx.__file__); print("Global httpx version:", httpx.__version__)'
+    && python3 -c \
+       'import httpx; print("Global httpx:", httpx.__file__); print("Global httpx version:", httpx.__version__)'
 
 # ------------------------------------------------------------
 # Hermes
@@ -50,17 +54,20 @@ RUN curl -fsSL \
       | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
-# Verify Hermes PM environment
+# Verify the Hermes PM environment created by the
+# official installer.
 #
-# The official installer creates the managed environment and
-# provides its own httpx there as well.
+# Hermes also creates its own managed environment containing
+# httpx. This verification confirms that environment remains
+# intact.
 # ------------------------------------------------------------
 
 RUN cd /home/node/.hermes/hermes-agent \
     && PYTHON="$(python3 -c 'from pathlib import Path; from pm.environments import project_python; print(project_python(Path("/home/node/.hermes/hermes-agent")))')" \
     && echo "Hermes PM Python: ${PYTHON}" \
     && test -x "${PYTHON}" \
-    && "${PYTHON}" -c 'import sys, httpx; print("Hermes runtime:", sys.executable); print("httpx:", httpx.__file__); print("httpx version:", httpx.__version__)'
+    && "${PYTHON}" -c \
+       'import sys, httpx; print("Hermes runtime:", sys.executable); print("httpx:", httpx.__file__); print("httpx version:", httpx.__version__)'
 
 # ------------------------------------------------------------
 # Configure Hermes -> Bifrost
