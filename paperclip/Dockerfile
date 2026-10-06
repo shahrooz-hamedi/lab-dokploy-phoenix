@@ -71,6 +71,6 @@ EOF
 
 RUN chmod +x /usr/local/bin/paperclip-hermes-entrypoint
 
-USER node
+USER root
 
 ENTRYPOINT ["/usr/local/bin/paperclip-hermes-entrypoint"]
