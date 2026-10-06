@@ -31,9 +31,18 @@ RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
 # Configure Hermes to use the named Bifrost provider.
 #
 # Bifrost remains the only inference gateway.
+#
+# IMPORTANT:
+# Hermes has both:
+#   model.base_url
+# and:
+#   providers.bifrost.base_url
+#
+# Both must point to Bifrost.
 # ------------------------------------------------------------
-RUN hermes config set model.provider custom:bifrost \
-    && hermes config set model.default openrouter/bifrost/main-free \
+RUN hermes config set --force model.provider custom:bifrost \
+    && hermes config set --force model.default openrouter/bifrost/main-free \
+    && hermes config set --force model.base_url https://bifrost.phoenix-rtp.com/v1 \
     && hermes config set --force providers.bifrost.name Bifrost \
     && hermes config set --force providers.bifrost.base_url https://bifrost.phoenix-rtp.com/v1 \
     && hermes config set --force providers.bifrost.key_env BIFROST_CEO_API_KEY \
@@ -53,7 +62,7 @@ RUN cp -a /home/node/.hermes /opt/hermes-seed \
 # ------------------------------------------------------------
 # Runtime entrypoint.
 #
-# Must start as root because the persistent Hermes volume may be
+# Starts as root because the persistent Hermes volume may be
 # empty and needs ownership initialization.
 # ------------------------------------------------------------
 RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
@@ -73,6 +82,16 @@ if [ ! -f "${HERMES_MARKER}" ]; then
     touch "${HERMES_MARKER}"
     chown node:node "${HERMES_MARKER}"
 fi
+
+# ------------------------------------------------------------
+# Reconcile the active Hermes model endpoint on every startup.
+#
+# This is intentionally separate from providers.bifrost.base_url.
+# Hermes uses model.base_url for the active custom provider
+# endpoint, so a persistent Hermes volume must not retain the
+# installer's default OpenRouter endpoint.
+# ------------------------------------------------------------
+hermes config set --force model.base_url https://bifrost.phoenix-rtp.com/v1
 
 exec /usr/bin/tini -- \
     /usr/local/bin/docker-entrypoint.sh \
