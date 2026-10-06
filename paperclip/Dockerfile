@@ -33,11 +33,13 @@ RUN curl -fsSL \
       | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
-# Hermes managed Python environment
-#
-# Hermes creates and manages its own PM Python environment.
-# Do not modify the generated PM environment manually.
+# Global httpx for Hermes bundled Python
 # ------------------------------------------------------------
+
+USER root
+
+RUN /home/node/.hermes/tools/python-3.14.7+20260901-linux-x64/bin/python3 \
+    -m pip install --no-cache-dir httpx
 
 # ------------------------------------------------------------
 # Configure Hermes -> Bifrost
