@@ -33,14 +33,20 @@ RUN curl -fsSL \
       | bash -s -- --non-interactive
 
 # ------------------------------------------------------------
-# Verify the Hermes PM environment created by the
-# official installer.
+# Hermes managed Python environment
+#
+# Hermes creates and manages its own PM Python environment.
+# Install provider dependencies into THAT environment.
+#
+# Do NOT install these into system Python.
+# Do NOT remove bundled providers.
 # ------------------------------------------------------------
 
 RUN cd /home/node/.hermes/hermes-agent \
     && PYTHON="$(python3 -c 'from pathlib import Path; from pm.environments import project_python; print(project_python(Path("/home/node/.hermes/hermes-agent")))')" \
     && echo "Hermes PM Python: ${PYTHON}" \
     && test -x "${PYTHON}" \
+    && "${PYTHON}" -m pip install --no-cache-dir --upgrade httpx \
     && "${PYTHON}" -c 'import sys, httpx; print("Hermes runtime:", sys.executable); print("httpx:", httpx.__file__); print("httpx version:", httpx.__version__)'
 
 # ------------------------------------------------------------
@@ -70,12 +76,7 @@ RUN npm install -g @earendil-works/pi-coding-agent \
 #
 # Return to node permanently.
 #
-# The /home/node/.hermes directory is already owned by node.
-# When Docker mounts a NEW empty named volume at this path,
-# Docker initializes the volume from the image contents.
-#
-# Therefore there is no root-time volume bootstrap, no cp,
-# no chown, and no su.
+# /home/node/.hermes is owned by node.
 # ------------------------------------------------------------
 
 USER node
