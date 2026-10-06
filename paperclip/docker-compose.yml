@@ -162,6 +162,7 @@ services:
 
     volumes:
       - paperclip-data:/paperclip
+      - hermes-data:/home/node/.hermes
 
     networks:
       - dokploy-network
@@ -178,3 +179,4 @@ networks:
 volumes:
   paperclip-data:
   paperclip-postgres:
+  hermes-data:
