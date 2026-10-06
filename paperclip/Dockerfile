@@ -19,19 +19,19 @@ ENV HOME=/home/node
 ENV HERMES_HOME=/home/node/.hermes
 ENV PATH=/home/node/.local/bin:${PATH}
 
-# ------------------------------------------------------------------
-# Install Hermes.
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
+# Install Hermes using the official Hermes installer.
+#
+# Hermes owns its own Python runtime and dependency management.
+# ------------------------------------------------------------
 RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
     | bash -s -- --non-interactive
 
-# ------------------------------------------------------------------
-# Configure Hermes.
+# ------------------------------------------------------------
+# Configure Hermes to use the named Bifrost provider.
 #
-# DO NOT CHANGE THESE VALUES:
-#   provider = custom:bifrost
-#   model    = openrouter/bifrost/main-free
-# ------------------------------------------------------------------
+# Bifrost remains the only inference gateway.
+# ------------------------------------------------------------
 RUN hermes config set model.provider custom:bifrost \
     && hermes config set model.default openrouter/bifrost/main-free \
     && hermes config set --force providers.bifrost.name Bifrost \
@@ -39,31 +39,23 @@ RUN hermes config set model.provider custom:bifrost \
     && hermes config set --force providers.bifrost.key_env BIFROST_CEO_API_KEY \
     && hermes config set --force providers.bifrost.discover_models true
 
-# ------------------------------------------------------------------
-# Ensure Hermes' own PM-managed dependency environment is populated.
+# ------------------------------------------------------------
+# Preserve the complete Hermes installation in the image.
 #
-# This is intentionally Hermes PM, not pip/system Python.
-# ------------------------------------------------------------------
-RUN hermes pm install --trust-recorded
-
-# ------------------------------------------------------------------
-# Preserve the complete Hermes installation, including the PM-managed
-# dependency environments, in the image seed.
-# ------------------------------------------------------------------
+# The runtime named volume at /home/node/.hermes is initialized
+# from this seed on first startup.
+# ------------------------------------------------------------
 USER root
 
 RUN cp -a /home/node/.hermes /opt/hermes-seed \
     && chown -R node:node /opt/hermes-seed
 
-# ------------------------------------------------------------------
+# ------------------------------------------------------------
 # Runtime entrypoint.
 #
-# The Hermes named volume hides /home/node/.hermes from the image,
-# therefore initialize a fresh volume from the image seed once.
-#
-# The wrapper remains root because it must be able to chown the newly
-# created named volume before Paperclip starts as node.
-# ------------------------------------------------------------------
+# Must start as root because the persistent Hermes volume may be
+# empty and needs ownership initialization.
+# ------------------------------------------------------------
 RUN cat > /usr/local/bin/paperclip-hermes-entrypoint <<'EOF'
 #!/bin/sh
 set -eu
@@ -89,9 +81,6 @@ EOF
 
 RUN chmod +x /usr/local/bin/paperclip-hermes-entrypoint
 
-# The entrypoint intentionally starts as root so it can initialize the
-# Hermes named volume. Paperclip's official entrypoint then handles the
-# application startup.
 USER root
 
 ENTRYPOINT ["/usr/local/bin/paperclip-hermes-entrypoint"]
