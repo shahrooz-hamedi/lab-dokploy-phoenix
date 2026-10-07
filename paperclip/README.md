@@ -27,13 +27,6 @@ docker exec -it --user node "$PC" sh -lc '
 '
 ```
 
-When prompted:
-
-```text
-◆ PostgreSQL connection string
-│ postgres://user:pass@localhost:5432/paperclip
-```
-
 Enter the actual Compose database connection:
 
 ```text
