@@ -13,13 +13,114 @@ echo "$PC"
 docker exec "$PC" hermes --version
 ```
 
+Expected version will depend on the Hermes version installed by the installer.
+
+## 3. Install Hermes
+
+Hermes is installed automatically by the Paperclip Dockerfile. If Hermes ever needs to be installed manually inside the container:
+
+```bash
+docker exec -it --user node "$PC" sh -lc '
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
+  | bash -s -- --non-interactive
+'
+```
+
+After installation:
+
+```bash
+docker exec "$PC" hermes --version
+```
+
+## 4. Update Hermes
+
+Use Hermes' normal update mechanism:
+
+```bash
+docker exec "$PC" hermes update
+```
+
+Then verify:
+
+```bash
+docker exec "$PC" hermes --version
+```
+
+## 5. Run Hermes doctor
+
+```bash
+docker exec "$PC" hermes doctor
+```
+
+This verifies the Hermes Python environment, required packages, configuration, tools, and other runtime components.
+
+## 6. Configure Mem0
+
+Launch the Hermes Mem0 setup wizard:
+
+```bash
+docker exec -it "$PC" hermes mem0
+```
+
+For the self-hosted Mem0 server, use:
+
+```text
+Mem0 server URL:
+https://mem0.phoenix-rtp.com
+```
+
+When prompted for the **Server API key**, enter the actual Mem0 API key.
+
+For the Paperclip CEO:
+
+```text
+User identifier: paperclip-ceo
+Agent identifier: paperclip-ceo
+```
+
+The wizard saves the Mem0 configuration to Hermes' persistent configuration and saves the API key to Hermes' `.env`.
+
 Expected:
 
 ```text
-Hermes Agent v0.19.0
+✓ Mem0 server reachable at https://mem0.phoenix-rtp.com
+
+Memory provider: mem0 (self-hosted)
+Server: https://mem0.phoenix-rtp.com
+Activation saved to config.yaml
+Provider config saved
+API key saved to .env
+
+Start a new session to activate.
 ```
 
-## 3. Onboard Paperclip
+## 7. Start a new Hermes session
+
+After Mem0 setup, start a new session so the configuration is activated:
+
+```bash
+docker exec -it "$PC" hermes
+```
+
+Test memory by asking Hermes to remember a unique test value, for example:
+
+```text
+Remember that the Paperclip CEO's Mem0 test identifier is paperclip-ceo-test-001.
+```
+
+Then ask:
+
+```text
+What is the Paperclip CEO's Mem0 test identifier?
+```
+
+The expected answer is:
+
+```text
+paperclip-ceo-test-001
+```
+
+## 8. Onboard Paperclip
 
 ```bash
 docker exec -it --user node "$PC" sh -lc '
@@ -35,7 +136,7 @@ postgres://paperclip:YOUR_POSTGRES_PASSWORD@paperclip-postgres:5432/paperclip
 
 Use the **same `POSTGRES_PASSWORD` configured in Dokploy**.
 
-## 4. Connect CLI as board
+## 9. Connect CLI as board
 
 ```bash
 docker exec -it "$PC" sh -lc '
@@ -52,7 +153,7 @@ Expected:
 Connected profile 'default' as board.
 ```
 
-## 5. Create CEO
+## 10. Create CEO
 
 ```bash
 docker exec "$PC" sh -lc '
@@ -63,7 +164,7 @@ $CLI "$APP" agent create \
   --company-id f9a66595-b99a-4296-b087-d78e176b8f35 \
   --profile default \
   --payload-json '"'"'{
-    "name": "CEO",
+    "name": "Headman",
     "role": "ceo",
     "title": "Chief Executive Officer",
     "icon": "crown",
@@ -80,7 +181,7 @@ $CLI "$APP" agent create \
 '
 ```
 
-## 6. Verify CEO
+## 11. Verify CEO
 
 ```bash
 docker exec "$PC" sh -lc '
