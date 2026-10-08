@@ -161,7 +161,7 @@ CLI=/app/cli/node_modules/.bin/tsx
 APP=/app/cli/src/index.ts
 
 $CLI "$APP" agent create \
-  --company-id f9a66595-b99a-4296-b087-d78e176b8f35 \
+  --company-id b3f346ee-b573-4f7e-bad9-12643b51a240 \
   --profile default \
   --payload-json '"'"'{
     "name": "Headman",
@@ -189,7 +189,7 @@ CLI=/app/cli/node_modules/.bin/tsx
 APP=/app/cli/src/index.ts
 
 $CLI "$APP" agent list \
-  --company-id f9a66595-b99a-4296-b087-d78e176b8f35 \
+  --company-id b3f346ee-b573-4f7e-bad9-12643b51a240 \
   --json
 '
 ```
@@ -202,6 +202,136 @@ status: idle
 adapterType: hermes_local
 heartbeat.enabled: false
 ```
+
+## 12. Get the Board Key
+
+Create a temporary/named board API key. Copy the returned token from the command output.
+
+```bash
+docker exec "$PC" sh -lc '
+set -e
+
+CLI=/app/cli/node_modules/.bin/tsx
+ENTRY=/app/cli/src/index.ts
+API=https://paperclip.phoenix-rtp.com
+
+$CLI $ENTRY token board create \
+  --name "lab-doctor-bridge-bootstrap" \
+  --api-base "$API"
+'
+```
+
+## 13. Create the Lab Doctor Task-Bridge Key
+
+Paste the board token returned by Section 12 into `BOARD_KEY`.
+
+```bash
+BOARD_KEY='PASTE_THE_BOARD_TOKEN_HERE'
+```
+
+Then create the scoped task-bridge key for Lab Doctor:
+
+```bash
+curl -sS -f \
+  -X POST \
+  -H "Authorization: Bearer $BOARD_KEY" \
+  -H "Content-Type: application/json" \
+  "https://paperclip.phoenix-rtp.com/api/agents/7c013219-e5c7-4fcd-90b1-be942e872da8/keys" \
+  -d '{
+    "name": "Lab Doctor task bridge",
+    "scope": {
+      "kind": "task_bridge",
+      "projectIds": [
+        "d93dc06f-88d9-4a30-8121-a15537c35d7e",
+        "36b9fa42-d801-42e4-b557-36040abf81f5"
+      ]
+    }
+  }' | python3 -m json.tool
+```
+
+The resulting key is the **Lab Doctor `PAPERCLIP_BRIDGE_API_KEY`**.
+
+Scope:
+
+```text
+Onboarding
+Infrastructure
+```
+
+The key is **task-bridge scoped** and is not a normal full agent API key.
+
+## 14. List Board Keys
+
+After creating the bootstrap key, verify the board keys that currently exist:
+
+```bash
+docker exec "$PC" sh -lc '
+CLI=/app/cli/node_modules/.bin/tsx
+ENTRY=/app/cli/src/index.ts
+
+$CLI $ENTRY token board list
+'
+```
+
+Record the `keyId` for the temporary:
+
+```text
+lab-doctor-bridge-bootstrap
+```
+
+**Do not confuse the board key ID with the Lab Doctor task-bridge key.** They are different credentials.
+
+## 15. Revoke the Bootstrap Board Key
+
+After the Lab Doctor task-bridge key has been successfully created and stored, revoke the temporary bootstrap board key.
+
+Set the key ID returned by Section 14:
+
+```bash
+BOARD_KEY_ID='PASTE_BOOTSTRAP_BOARD_KEY_ID_HERE'
+```
+
+Then:
+
+```bash
+docker exec "$PC" sh -lc '
+CLI=/app/cli/node_modules/.bin/tsx
+ENTRY=/app/cli/src/index.ts
+
+$CLI $ENTRY token board revoke "$BOARD_KEY_ID"
+'
+```
+
+Expected:
+
+```json
+{"ok":true,"keyId":"..."}
+```
+
+After revocation, the bootstrap board credential must no longer be usable.
+
+## 16. Verify Board Keys After Cleanup
+
+List the remaining board keys:
+
+```bash
+docker exec "$PC" sh -lc '
+CLI=/app/cli/node_modules/.bin/tsx
+ENTRY=/app/cli/src/index.ts
+
+$CLI $ENTRY token board list
+'
+```
+
+Confirm that:
+
+```text
+lab-doctor-bridge-bootstrap
+```
+
+is no longer present.
+
+**Important:** this only lists/revokes **board API keys**. The Lab Doctor `task_bridge` key created in Section 13 is a separate agent key and is intentionally not revoked here.
 
 ## Canonical model references
 
