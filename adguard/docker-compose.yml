@@ -13,10 +13,7 @@ services:
       - adguardhome-work:/opt/adguardhome/work
       - adguardhome-conf:/opt/adguardhome/conf
       - /etc/dokploy/adguard-certs:/etc/adguard-certs:ro
-
-    labels:
-      - traefik.http.services.lab-adguard-4ynnux-29-websecure.loadbalancer.server.scheme=https
-
+      
     networks:
       dokploy-network:
         ipv4_address: 10.0.1.150
