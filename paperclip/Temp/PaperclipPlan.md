@@ -2,9 +2,9 @@
 
 ## Current Status
 
-Paperclip is deployed without errors.
+Paperclip is deployed and operating successfully.
 
-The following agents and integrations are currently working:
+The following agents and integrations are working:
 
 - **Headman** — CEO, `hermes_local`
   - Mem0
@@ -12,7 +12,11 @@ The following agents and integrations are currently working:
   - Bifrost custom provider
 - **Lab Doctor** — IT Director, `hermes_gateway`
   - Remote Hermes Lab profile
-- **Summarizer** — built-in agent
+- **Summarizer** — Built-in agent
+
+The Workspace Changes and LLM Wiki plugins are installed and operational. Wiki Maintainer has completed its three maintenance routines, and all three routines are activated with a daily schedule.
+
+The LLM Wiki currently uses one shared space, `default`. Its information architecture, conventions, source-ingestion process, and GitHub integration have not yet been finalized.
 
 ---
 
@@ -27,15 +31,23 @@ The following agents and integrations are currently working:
 
 ---
 
-## 2. Install and Verify Plugins — ⬜ NEXT
+## 2. Install and Verify Plugins — ✅ COMPLETE
 
-- [ ] Workspace Changes
-- [ ] LLM Wiki
-- [ ] Confirm Wiki Maintainer is healthy and functional
+- [x] Install and verify Workspace Changes
+- [x] Install and verify LLM Wiki
+- [x] Confirm Wiki Maintainer is operational
+- [x] Run and verify wiki lint
+- [x] Run and verify index refresh
+- [x] Run and verify knowledge distillation
+- [x] Activate all three maintenance routines
+- [x] Configure daily execution
+- [x] Confirm wiki pages are created and maintained
+
+**Remaining consideration:** The wiki's shared-space configuration and content conventions need to be designed before expanding its knowledge base.
 
 ---
 
-## 3. Design and Create GitHub Structure — ⬜
+## 3. Design and Create GitHub Structure — ⬜ NEXT PHASE
 
 - [ ] Create private `phoenix-rtp-wiki` repository
 - [ ] Define what belongs in GitHub vs Paperclip vs Mem0 vs Wiki vs Artifacts
@@ -93,18 +105,11 @@ The following agents and integrations are currently working:
 ### Telegram Access Configuration
 
 - External identity access: **Allow unlinked people**
-- Unlinked people are treated as **restricted guests**
-- Restricted guests run tasks only with an isolated workspace and sandbox environment
-- Paperclip safely refuses requests that do not satisfy the required isolation
-- Restricted guests cannot:
-  - Approve
-  - Hire
-  - Spend
-  - Manage access
-  - Reassign agents
-- Identity link:
-  - **Phoenix RTP**
-  - Linked to **Shahrooz Hamedi**
+- Unlinked people are treated as restricted guests.
+- Restricted guests run tasks only with an isolated workspace and sandbox environment.
+- Paperclip refuses requests that do not satisfy the required isolation.
+- Restricted guests cannot approve, hire, spend, manage access, or reassign agents.
+- Identity link: **Phoenix RTP**, linked to the account owner.
 
 ### Telegram Verification
 
@@ -128,7 +133,7 @@ The following agents and integrations are currently working:
 
 ## 10. Only After All Tests Pass — ⬜
 
-- [ ] Enable autonomous / recurring workflows
+- [ ] Enable autonomous / recurring workflows beyond the current wiki maintenance schedule
 - [ ] Expand GitHub permissions
 - [ ] Add additional agents / projects
 
@@ -139,8 +144,8 @@ The following agents and integrations are currently working:
 | Item | Status |
 |---|---|
 | 1. Audit current runtimes | ✅ Complete |
-| 2. Install and verify plugins | ⬜ Next |
-| 3. Design and create GitHub structure | ⬜ |
+| 2. Install and verify plugins | ✅ Complete |
+| 3. Design and create GitHub structure | ⬜ Next |
 | 4. Connect LLM Wiki to GitHub | ⬜ |
 | 5. Add Lab Doctor | ✅ Complete |
 | 6. Write agent instructions | ⬜ |
@@ -149,4 +154,4 @@ The following agents and integrations are currently working:
 | 9. Final system validation | ⬜ |
 | 10. Enable autonomous workflows / expand | ⬜ |
 
-**Current next step: Item 2 — Install and verify plugins.**
+**Current next step: Discuss and design the shared Wiki space and information architecture before creating the GitHub repository.**
