@@ -1,0 +1,61 @@
+services:
+  certmate:
+    image: fabriziosalmi/certmate:${CERTMATE_VERSION:-2.48.5}
+    restart: unless-stopped
+
+    environment:
+      API_BEARER_TOKEN: ${API_BEARER_TOKEN:?Set API_BEARER_TOKEN}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY}
+      CERTMATE_BACKUP_PASSPHRASE: ${CERTMATE_BACKUP_PASSPHRASE:?Set CERTMATE_BACKUP_PASSPHRASE}
+      CLOUDFLARE_TOKEN: ${CLOUDFLARE_TOKEN:-}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+      BEHIND_PROXY: "true"
+      FLASK_ENV: production
+
+    volumes:
+      - certmate_certificates:/app/certificates
+      - certmate_data:/app/data
+      - certmate_logs:/app/logs
+      - certmate_backups:/app/backups
+
+    networks:
+      - dokploy-network
+
+    cap_drop:
+      - ALL
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  certmate_certificates:
+  certmate_data:
+  certmate_logs:
+  certmate_backups:
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
