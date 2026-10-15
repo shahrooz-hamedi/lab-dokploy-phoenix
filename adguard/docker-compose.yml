@@ -12,8 +12,8 @@ services:
     volumes:
       - adguardhome-work:/opt/adguardhome/work
       - adguardhome-conf:/opt/adguardhome/conf
-      - /etc/dokploy/adguard-certs:/etc/adguard-certs:ro
-      
+      - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com:/etc/adguard-certs:ro
+
     networks:
       dokploy-network:
         ipv4_address: 10.0.1.150

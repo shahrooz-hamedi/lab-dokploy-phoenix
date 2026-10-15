@@ -1,0 +1,58 @@
+services:
+  3x-ui:
+    image: ghcr.io/mhsanaei/3x-ui:latest
+    pull_policy: never
+
+    environment:
+      XUI_DB_TYPE: "sqlite"
+      XUI_DB_FOLDER: "/etc/x-ui"
+
+      # Panel configuration
+      XUI_PORT: "2082"
+      XUI_INIT_WEB_BASE_PATH: "${XUI_INIT_WEB_BASE_PATH:?Set XUI_INIT_WEB_BASE_PATH in .env}"
+
+      # TLS is terminated by the reverse proxy.
+      XUI_SKIP_HSTS: "true"
+
+      # Security and logging
+      XUI_ENABLE_FAIL2BAN: "true"
+      XUI_NONINTERACTIVE: "1"
+      XUI_LOG_LEVEL: "warning"
+      XUI_DEBUG: "false"
+
+      XRAY_VMESS_AEAD_FORCED: "false"
+
+    volumes:
+      - /var/lib/3x-ui/db:/etc/x-ui
+      - /etc/dokploy/traefik/dynamic/certificates:/root/cert:ro
+
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+    ports:
+      - "2053:2053/tcp"
+      - "2053:2053/udp"
+      - "7090:7090/udp"
+
+    tty: true
+    restart: unless-stopped
+
+    networks:
+      - dokploy-network
+      - xui-ipv6-egress
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
+
+  xui-ipv6-egress:
+    external: true
