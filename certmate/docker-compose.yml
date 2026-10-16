@@ -11,6 +11,7 @@ services:
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
       BEHIND_PROXY: "true"
       FLASK_ENV: production
+      CERTMATE_ALLOW_INTERNAL_WEBHOOKS: "true"
 
     volumes:
       - certmate_certificates:/app/certificates
