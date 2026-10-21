@@ -1,6 +1,7 @@
 services:
   cloudflared:
     image: 'cloudflare/cloudflared:latest'
+    pull_policy: always
 
     environment:
       - 'TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:?}'
