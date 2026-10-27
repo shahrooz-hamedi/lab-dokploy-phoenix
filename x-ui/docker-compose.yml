@@ -37,6 +37,8 @@ services:
       - "2053:2053/tcp"
       - "2053:2053/udp"
       - "7090:7090/udp"
+      - "7050:7050/udp"
+      - "7040:7040/udp"
 
     tty: true
     restart: unless-stopped
