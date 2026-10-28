@@ -16,10 +16,14 @@ services:
       - soulsync-logs:/app/logs
       - soulsync-database:/app/data
 
+      - /mnt/nas/Media/Archive:/app/Archive:rw
+      - /mnt/nas/Media/Audio:/app/Transfer:rw
       - /mnt/nas/Media/Download:/app/downloads:rw
       - /mnt/nas/Media/Staging:/app/Staging:rw
-      - /mnt/nas/Media/Music:/app/Transfer:rw
-      - /mnt/nas/Media/YouTube:/media/youtube:rw
+
+      - /mnt/nas/Media/Video/Movies:/media/movies:rw
+      - /mnt/nas/Media/Video/Series:/media/tv:rw
+      - /mnt/nas/Media/Video/YouTube:/media/youtube:rw
 
     networks:
       - default
