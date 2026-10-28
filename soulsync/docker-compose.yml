@@ -1,0 +1,61 @@
+services:
+  soulsync:
+    image: ghcr.io/nezreka/soulsync:3.6.0
+    restart: unless-stopped
+
+    environment:
+      PUID: "0"
+      PGID: "0"
+      UMASK: "022"
+      PYTHONPATH: /app
+      SOULSYNC_CONFIG_PATH: /app/config/config.json
+      TZ: Asia/Tehran
+
+    volumes:
+      - soulsync-config:/app/config
+      - soulsync-logs:/app/logs
+      - soulsync-database:/app/data
+
+      - /mnt/nas/Media/Download:/app/downloads:rw
+      - /mnt/nas/Media/Staging:/app/Staging:rw
+      - /mnt/nas/Media/Music:/app/Transfer:rw
+      - /mnt/nas/Media/YouTube:/media/youtube:rw
+
+    networks:
+      - default
+      - dokploy-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+volumes:
+  soulsync-config:
+    name: lab-soulsync-config
+
+  soulsync-logs:
+    name: lab-soulsync-logs
+
+  soulsync-database:
+    name: lab-soulsync-database
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
