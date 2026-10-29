@@ -14,6 +14,9 @@ services:
       - /mnt/nas/Media/Download:/downloads/media
       - /mnt/nas/Storage/Download:/downloads/storage
 
+    tmpfs:
+      - /aria2/data
+
     expose:
       - "8080"
 
