@@ -1,0 +1,234 @@
+name: dograh
+
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: postgres
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - dograh-internal
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - dograh-internal
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  minio:
+    image: ghcr.io/dograh-hq/minio:2026.09.22
+    restart: unless-stopped
+
+    command:
+      - server
+      - /data
+      - --console-address
+      - ":9001"
+
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_API_CORS_ALLOW_ORIGIN: https://dograh.phoenix-rtp.com
+
+    volumes:
+      - minio_data:/data
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - dograh-internal
+      - dokploy-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  api:
+    image: ghcr.io/dograh-hq/dograh-api:latest
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+    extra_hosts:
+      - "storage-dograh.phoenix-rtp.com:10.0.1.18"
+
+    environment:
+
+      ENVIRONMENT: local
+      LOG_LEVEL: INFO
+
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-false}
+
+      PUBLIC_BASE_URL: https://dograh.phoenix-rtp.com
+      PUBLIC_HOST: dograh.phoenix-rtp.com
+
+      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+      # Self-hosted S3-compatible storage
+      ENABLE_AWS_S3: "true"
+
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID is required}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is required}
+
+      S3_BUCKET: voice-audio
+      S3_REGION: us-east-1
+      S3_ENDPOINT_URL: https://storage-dograh.phoenix-rtp.com
+      S3_SIGNATURE_VERSION: s3v4
+      S3_ADDRESSING_STYLE: path
+
+      # Internal MinIO configuration
+      MINIO_ENDPOINT: minio:9000
+      MINIO_BUCKET: voice-audio
+      MINIO_SECURE: "false"
+
+      FASTAPI_WORKERS: "1"
+
+      # Background services
+      ENABLE_ARI_MANAGER: "true"
+      ENABLE_CAMPAIGN_ORCHESTRATOR: "true"
+      ENABLE_PROMETHEUS_METRICS: "false"
+
+      # No separate TURN server
+      ENABLE_COTURN: "false"
+      FORCE_TURN_RELAY: "false"
+
+      # Trust the existing Traefik proxy
+      FORWARDED_ALLOW_IPS: "10.0.1.18"
+
+      # Authentication
+      OSS_JWT_SECRET: ${OSS_JWT_SECRET:?OSS_JWT_SECRET is required}
+
+      DOGRAH_DEVOPS_SECRET: ${DOGRAH_DEVOPS_SECRET:-}
+
+      TELEPHONY_WS_TOKEN_SECRET: ${TELEPHONY_WS_TOKEN_SECRET:?TELEPHONY_WS_TOKEN_SECRET is required}
+      TELEPHONY_WS_TOKEN_ENFORCE: "false"
+
+      LANGFUSE_TRACES_PUBLIC: "false"
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health').read()"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+    networks:
+      - dograh-internal
+      - dokploy-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  ui:
+    image: ghcr.io/dograh-hq/dograh-ui:latest
+    restart: unless-stopped
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    environment:
+      HOSTNAME: 0.0.0.0
+      BACKEND_URL: http://api:8000
+      NODE_ENV: oss
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-false}
+
+    networks:
+      - dokploy-network
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+volumes:
+  postgres_data:
+    driver: local
+
+  redis_data:
+    driver: local
+
+  minio_data:
+    driver: local
+
+
+networks:
+  dograh-internal:
+    driver: bridge
+    internal: true
+
+  dokploy-network:
+    external: true
