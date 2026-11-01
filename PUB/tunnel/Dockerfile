@@ -3,6 +3,11 @@ FROM ubuntu:24.04
 ENV container=docker
 ENV DEBIAN_FRONTEND=noninteractive
 
+ARG CTUNNEL_VERSION=v0.3.0
+
+# --------------------------------------------------
+# Base packages
+# --------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     systemd \
     systemd-sysv \
@@ -15,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     iputils-tracepath \
     iptables \
+    wireguard-tools \
     dnsutils \
     net-tools \
     netcat-openbsd \
@@ -35,6 +41,42 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# --------------------------------------------------
+# Install C-Tunnel
+# --------------------------------------------------
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) ARCH=amd64 ;; \
+        arm64) ARCH=arm64 ;; \
+        *) echo "Unsupported architecture"; exit 1 ;; \
+    esac; \
+    WORK="$(mktemp -d)"; \
+    cd "$WORK"; \
+    BASE="https://github.com/CIAUB/C-Tunnel/releases/download/${CTUNNEL_VERSION}"; \
+    ASSETS="ctunnel-linux-${ARCH} ctunnel-engine-linux-${ARCH} ctunnel-kernel.sh ctunnel@.service ctunnel-engine@.service ctunnel-panel.service"; \
+    curl -fsSLO "${BASE}/SHA256SUMS"; \
+    for FILE in $ASSETS; do \
+        curl -fsSLO "${BASE}/${FILE}"; \
+        awk -v name="$FILE" '$2 == name {found=1; print} END {if (!found) exit 1}' SHA256SUMS | sha256sum -c -; \
+    done; \
+    install -D -m 0755 "ctunnel-linux-${ARCH}" /usr/local/bin/ctunnel; \
+    install -D -m 0755 "ctunnel-engine-linux-${ARCH}" /usr/local/bin/ctunnel-engine; \
+    ln -sf /usr/local/bin/ctunnel /usr/local/bin/c-tunnel; \
+    install -D -m 0755 ctunnel-kernel.sh /usr/local/lib/ctunnel/ctunnel-kernel; \
+    install -D -m 0644 ctunnel@.service /etc/systemd/system/ctunnel@.service; \
+    install -D -m 0644 ctunnel-engine@.service /etc/systemd/system/ctunnel-engine@.service; \
+    install -D -m 0644 ctunnel-panel.service /etc/systemd/system/ctunnel-panel.service; \
+    mkdir -p \
+        /etc/ctunnel/tunnels \
+        /etc/ctunnel/certs \
+        /etc/systemd/system/multi-user.target.wants; \
+    ln -sfn ../ctunnel-panel.service \
+        /etc/systemd/system/multi-user.target.wants/ctunnel-panel.service; \
+    rm -rf "$WORK"
+
+# --------------------------------------------------
+# Container runtime
+# --------------------------------------------------
 STOPSIGNAL SIGRTMIN+3
 
 CMD ["/sbin/init"]
