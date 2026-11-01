@@ -26,10 +26,6 @@ services:
       - /var/lib/3x-ui/db:/etc/x-ui
       - /etc/dokploy/traefik/dynamic/certificates:/root/cert:ro
 
-    labels:
-      - traefik.http.services.pub-3xui-3jehmo-2-web.loadbalancer.server.scheme=https
-      - traefik.http.services.pub-3xui-3jehmo-2-websecure.loadbalancer.server.scheme=https
-
     cap_add:
       - NET_ADMIN
       - NET_RAW
