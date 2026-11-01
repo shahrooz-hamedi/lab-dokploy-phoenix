@@ -1,4 +1,4 @@
-name: pub-xraymesh
+name: pub-tunnel
 
 services:
   xraymesh:
@@ -6,9 +6,9 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    image: pub-xraymesh-ubuntu:24.04
+    image: pub-tunnel-ubuntu:24.04
 
-    hostname: pub-xraymesh
+    hostname: pub-tunnel
     restart: unless-stopped
     stop_grace_period: 30s
     init: false
@@ -49,6 +49,7 @@ services:
 
     networks:
       - dokploy-network
+      - xui-ipv6-egress
 
     deploy:
       replicas: 1
@@ -68,5 +69,13 @@ volumes:
   xraymesh-state:
 
 networks:
+  default:
+    name: dokploy-network
+    external: true
+
   dokploy-network:
+    name: dokploy-network
+    external: true
+
+  xui-ipv6-egress:
     external: true
