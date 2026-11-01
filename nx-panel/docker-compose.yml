@@ -2,7 +2,10 @@ services:
   panel:
     image: ghcr.io/nx-panel/panel:latest
     restart: unless-stopped
-    network_mode: host
+    environment:
+      NX_WEB_LISTEN: "0.0.0.0:7090"
+    expose:
+      - "7090"
     volumes:
       - /var/lib/nx-panel/data:/app/db
       - /var/lib/nx-panel/backups:/app/db/backups
@@ -10,3 +13,11 @@ services:
       - /var/lib/nx-panel/bin:/app/bin
       - /var/lib/nx-panel/sub-themes:/app/sub-themes:ro
       - /etc/machine-id:/etc/machine-id:ro
+      # CertMate-managed wildcard certificate
+      - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com:/certs/phoenix-rtp.com:ro
+    networks:
+      - dokploy-network
+networks:
+  default:
+    name: dokploy-network
+    external: true
