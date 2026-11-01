@@ -12,6 +12,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     init: false
+    cgroup: host
 
     cap_add:
       - SYS_ADMIN
@@ -36,13 +37,11 @@ services:
       - /tmp
 
     ports:
-      # Mesh TCP
       - target: 2083
         published: "2083"
         protocol: tcp
         mode: host
 
-      # Mesh UDP
       - target: 2083
         published: "2083"
         protocol: udp
@@ -53,16 +52,13 @@ services:
 
     deploy:
       replicas: 1
-
       restart_policy:
         condition: any
         delay: 5s
-
       resources:
         limits:
           cpus: "2"
           memory: 1G
-
         reservations:
           memory: 512M
 
