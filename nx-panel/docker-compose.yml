@@ -1,9 +1,8 @@
 services:
   panel:
-    image: ghcr.io/nexora-vpn/panel:latest
+    image: ghcr.io/nx-panel/panel:latest
     restart: unless-stopped
     network_mode: host
-
     volumes:
       - /var/lib/nx-panel/data:/app/db
       - /var/lib/nx-panel/backups:/app/db/backups
