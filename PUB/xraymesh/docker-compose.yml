@@ -28,7 +28,6 @@ services:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - xraymesh-config:/etc/xraymesh
       - xraymesh-install:/opt/xraymesh
-      - xraymesh-systemd:/etc/systemd/system
       - xraymesh-state:/var/lib/xraymesh
 
     tmpfs:
@@ -37,22 +36,20 @@ services:
       - /tmp
 
     ports:
-      # Mesh
+      # Mesh TCP
       - target: 2083
         published: "2083"
         protocol: tcp
         mode: host
 
+      # Mesh UDP
       - target: 2083
         published: "2083"
         protocol: udp
         mode: host
 
-      # PCK
-      - target: 20000-32767
-        published: "20000-32767"
-        protocol: tcp
-        mode: host
+      # PCK TCP
+      - "20000-32767:20000-32767/tcp"
 
     networks:
       - dokploy-network
@@ -68,13 +65,13 @@ services:
         limits:
           cpus: "2"
           memory: 1G
+
         reservations:
           memory: 512M
 
 volumes:
   xraymesh-config:
   xraymesh-install:
-  xraymesh-systemd:
   xraymesh-state:
 
 networks:
