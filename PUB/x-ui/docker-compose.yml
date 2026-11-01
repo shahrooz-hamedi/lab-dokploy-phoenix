@@ -48,10 +48,13 @@ services:
       - xui-ipv6-egress
 
 networks:
-  dokploy-network:
-    external: true
+  default:
     name: dokploy-network
+    external: true
+
+  dokploy-network:
+    name: dokploy-network
+    external: true
 
   xui-ipv6-egress:
     external: true
-    name: xui-ipv6-egress
