@@ -48,9 +48,6 @@ services:
         protocol: udp
         mode: host
 
-      # PCK TCP
-      - "20000-32767:20000-32767/tcp"
-
     networks:
       - dokploy-network
 
