@@ -1,0 +1,82 @@
+name: pub-xraymesh
+
+services:
+  xraymesh:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: pub-xraymesh-ubuntu:24.04
+
+    hostname: pub-xraymesh
+    restart: unless-stopped
+    stop_grace_period: 30s
+    init: false
+
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+      - NET_RAW
+
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+    security_opt:
+      - apparmor:unconfined
+
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - xraymesh-config:/etc/xraymesh
+      - xraymesh-install:/opt/xraymesh
+      - xraymesh-systemd:/etc/systemd/system
+      - xraymesh-state:/var/lib/xraymesh
+
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+
+    ports:
+      # Mesh
+      - target: 2083
+        published: "2083"
+        protocol: tcp
+        mode: host
+
+      - target: 2083
+        published: "2083"
+        protocol: udp
+        mode: host
+
+      # PCK
+      - target: 20000-32767
+        published: "20000-32767"
+        protocol: tcp
+        mode: host
+
+    networks:
+      - dokploy-network
+
+    deploy:
+      replicas: 1
+
+      restart_policy:
+        condition: any
+        delay: 5s
+
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          memory: 512M
+
+volumes:
+  xraymesh-config:
+  xraymesh-install:
+  xraymesh-systemd:
+  xraymesh-state:
+
+networks:
+  dokploy-network:
+    external: true
