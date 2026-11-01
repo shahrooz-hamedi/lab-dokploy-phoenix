@@ -8,7 +8,7 @@ services:
       XUI_DB_FOLDER: "/etc/x-ui"
 
       # Panel configuration
-      XUI_PORT: "2082"
+      XUI_PORT: "2095"
       XUI_INIT_WEB_BASE_PATH: "${XUI_INIT_WEB_BASE_PATH:?Set XUI_INIT_WEB_BASE_PATH in .env}"
 
       # TLS is terminated by the reverse proxy.
