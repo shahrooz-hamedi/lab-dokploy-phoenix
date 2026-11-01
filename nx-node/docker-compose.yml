@@ -1,0 +1,18 @@
+services:
+  node:
+    image: ghcr.io/nexora-vpn/node:latest
+    restart: unless-stopped
+    network_mode: host
+
+    environment:
+      NX_NODE_LISTEN: "127.0.0.1:62050"
+      NX_NODE_CERT: /app/certs/ssl_cert.pem
+      NX_NODE_KEY: /app/certs/ssl_key.pem
+      NX_NODE_CLIENT_CA: /app/certs/panel_ca.pem
+
+    volumes:
+      - /var/lib/nx-panel/certs:/app/certs
+      - /var/lib/nx-panel/cache:/app/cache
+
+    cap_add:
+      - NET_ADMIN

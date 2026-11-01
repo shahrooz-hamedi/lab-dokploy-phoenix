@@ -1,0 +1,13 @@
+services:
+  panel:
+    image: ghcr.io/nexora-vpn/panel:latest
+    restart: unless-stopped
+    network_mode: host
+
+    volumes:
+      - /var/lib/nx-panel/data:/app/db
+      - /var/lib/nx-panel/backups:/app/db/backups
+      - /var/lib/nx-panel/rulesets:/app/db/rulesets
+      - /var/lib/nx-panel/bin:/app/bin
+      - /var/lib/nx-panel/sub-themes:/app/sub-themes:ro
+      - /etc/machine-id:/etc/machine-id:ro
