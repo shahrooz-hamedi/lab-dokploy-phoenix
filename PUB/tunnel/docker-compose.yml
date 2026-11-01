@@ -30,6 +30,8 @@ services:
       - xraymesh-config:/etc/xraymesh
       - xraymesh-install:/opt/xraymesh
       - xraymesh-state:/var/lib/xraymesh
+      - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com/fullchain.pem:/etc/ctunnel/certs/fullchain.pem:ro
+      - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com/privkey.pem:/etc/ctunnel/certs/privkey.pem:ro
 
     tmpfs:
       - /run
