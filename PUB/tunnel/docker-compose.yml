@@ -48,7 +48,7 @@ services:
         mode: host
 
     networks:
-      - dokploy-network
+      - default
       - xui-ipv6-egress
 
     deploy:
@@ -70,10 +70,6 @@ volumes:
 
 networks:
   default:
-    name: dokploy-network
-    external: true
-
-  dokploy-network:
     name: dokploy-network
     external: true
 
