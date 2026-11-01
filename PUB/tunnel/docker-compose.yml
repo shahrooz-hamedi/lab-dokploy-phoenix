@@ -66,6 +66,10 @@ services:
           memory: 1G
         reservations:
           memory: 512M
+    # C-Tunnel HTTPS backend for Traefik
+    labels:
+      - "traefik.http.services.pub-tunnel-wj5p4n-5-websecure.loadbalancer.server.scheme=https"
+      - "traefik.http.services.pub-tunnel-wj5p4n-5-websecure.loadbalancer.serverstransport=ctunnel-backend@file"
 
 volumes:
   xraymesh-config:
