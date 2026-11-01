@@ -1,7 +1,7 @@
 name: pub-tunnel
 
 services:
-  xraymesh:
+  tunnel:
     build:
       context: .
       dockerfile: Dockerfile
