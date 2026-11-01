@@ -1,7 +1,7 @@
 services:
   3x-ui:
     image: ghcr.io/mhsanaei/3x-ui:latest
-    pull_policy: never
+    pull_policy: always
 
     environment:
       XUI_DB_TYPE: "sqlite"
