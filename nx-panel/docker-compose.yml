@@ -4,8 +4,6 @@ services:
     restart: unless-stopped
     environment:
       NX_WEB_LISTEN: "0.0.0.0:7090"
-    expose:
-      - "7090"
     volumes:
       - /var/lib/nx-panel/data:/app/db
       - /var/lib/nx-panel/backups:/app/db/backups
