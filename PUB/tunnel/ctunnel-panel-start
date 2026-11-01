@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+CONFIG="/etc/ctunnel/panel.json"
+
+DOMAIN="pub-tunnel.phoenix-rtp.com"
+CERT="/etc/ctunnel/certs/fullchain.pem"
+KEY="/etc/ctunnel/certs/privkey.pem"
+
+echo "[ctunnel-init] Starting HTTPS initialization."
+
+# --------------------------------------------------
+# Verify certificate files
+# --------------------------------------------------
+for FILE in "$CERT" "$KEY"; do
+    if [[ ! -s "$FILE" || ! -r "$FILE" ]]; then
+        echo "[ctunnel-init] ERROR: Certificate unavailable: $FILE" >&2
+        exit 1
+    fi
+done
+
+# --------------------------------------------------
+# Generate initial configuration if volume is fresh
+# --------------------------------------------------
+BOOTSTRAP_PID=""
+
+cleanup() {
+    if [[ -n "$BOOTSTRAP_PID" ]] && kill -0 "$BOOTSTRAP_PID" 2>/dev/null; then
+        kill -TERM "$BOOTSTRAP_PID" 2>/dev/null || true
+        wait "$BOOTSTRAP_PID" 2>/dev/null || true
+    fi
+}
+
+trap cleanup EXIT
+
+if [[ ! -s "$CONFIG" ]]; then
+    echo "[ctunnel-init] Fresh volume detected."
+    echo "[ctunnel-init] Generating initial panel configuration."
+
+    /usr/local/bin/ctunnel panel &
+    BOOTSTRAP_PID=$!
+
+    for ((i=0; i<60; i++)); do
+        if [[ -s "$CONFIG" ]]; then
+            break
+        fi
+
+        if ! kill -0 "$BOOTSTRAP_PID" 2>/dev/null; then
+            wait "$BOOTSTRAP_PID" || true
+            echo "[ctunnel-init] ERROR: Initial panel startup failed." >&2
+            exit 1
+        fi
+
+        sleep 1
+    done
+
+    if [[ ! -s "$CONFIG" ]]; then
+        echo "[ctunnel-init] ERROR: panel.json was not generated." >&2
+        exit 1
+    fi
+
+    cleanup
+    BOOTSTRAP_PID=""
+fi
+
+# --------------------------------------------------
+# Validate configuration
+# --------------------------------------------------
+jq -e '
+    type == "object" and
+    (.base_path | type == "string" and length > 0)
+' "$CONFIG" >/dev/null
+
+# --------------------------------------------------
+# Apply HTTPS settings while preserving base_path
+# --------------------------------------------------
+TMP="${CONFIG}.tmp.$$"
+
+jq \
+    --arg domain "$DOMAIN" \
+    --arg cert "$CERT" \
+    --arg key "$KEY" \
+    '.domain = $domain
+     | .cert_file = $cert
+     | .key_file = $key' \
+    "$CONFIG" > "$TMP"
+
+chmod 0644 "$TMP"
+mv -f "$TMP" "$CONFIG"
+
+echo "[ctunnel-init] HTTPS configuration applied."
+echo "[ctunnel-init] Domain: $DOMAIN"
+echo "[ctunnel-init] Starting C-Tunnel panel."
+
+trap - EXIT
+
+# --------------------------------------------------
+# Start panel with HTTPS
+# --------------------------------------------------
+exec /usr/local/bin/ctunnel panel

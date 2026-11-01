@@ -75,6 +75,16 @@ RUN set -eux; \
     rm -rf "$WORK"
 
 # --------------------------------------------------
+# C-Tunnel automatic HTTPS initialization
+# --------------------------------------------------
+COPY ctunnel-panel-start /usr/local/sbin/ctunnel-panel-start
+
+RUN chmod 0755 /usr/local/sbin/ctunnel-panel-start \
+    && mkdir -p /etc/systemd/system/ctunnel-panel.service.d \
+    && printf '[Service]\nExecStart=\nExecStart=/usr/local/sbin/ctunnel-panel-start\n' \
+       > /etc/systemd/system/ctunnel-panel.service.d/https.conf
+
+# --------------------------------------------------
 # Container runtime
 # --------------------------------------------------
 STOPSIGNAL SIGRTMIN+3
