@@ -18,6 +18,5 @@ services:
     networks:
       - dokploy-network
 networks:
-  default:
-    name: dokploy-network
+  dokploy-network:
     external: true
