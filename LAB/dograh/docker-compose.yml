@@ -58,7 +58,9 @@ services:
       retries: 10
 
     networks:
-      - dograh-internal
+      dograh-internal:
+        aliases:
+          - dograh-redis
 
     logging:
       driver: json-file
@@ -129,7 +131,7 @@ services:
       PUBLIC_HOST: dograh.phoenix-rtp.com
 
       DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@dograh-postgres:5432/postgres
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@dograh-redis:6379
 
       # Self-hosted S3-compatible storage
       ENABLE_AWS_S3: "true"
