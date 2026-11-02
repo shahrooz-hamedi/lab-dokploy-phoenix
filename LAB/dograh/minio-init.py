@@ -76,11 +76,18 @@ def main():
         log(f"Policy already exists: {POLICY_NAME}")
 
     # 5. Attach policy to application user
-    admin.attach_policy(
-        [POLICY_NAME],
-        user=APP_USER,
-    )
-    log("Application policy attached.")
+    try:
+        admin.attach_policy(
+            [POLICY_NAME],
+            user=APP_USER,
+        )
+        log("Application policy attached.")
+
+    except Exception as error:
+        if "XMinioAdminPolicyChangeAlreadyApplied" in str(error):
+            log("Application policy already attached; continuing.")
+        else:
+            raise
 
     # 6. Verify application-level permissions
     app_client = Minio(
