@@ -62,8 +62,10 @@ services:
         mode: host
 
     networks:
-      - default
-      - xui-ipv6-egress
+      default: {}
+      xui-ipv6-egress:
+        ipv4_address: 172.19.0.100
+        ipv6_address: fd42:3a91:7c20:2::100
 
     deploy:
       replicas: 1
