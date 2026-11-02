@@ -13,7 +13,8 @@ services:
     stop_grace_period: 30s
     init: false
     cgroup: host
-
+    sysctls:
+      net.ipv4.tcp_congestion_control: bbr
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
