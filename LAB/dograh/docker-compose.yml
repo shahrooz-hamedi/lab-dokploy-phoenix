@@ -21,7 +21,9 @@ services:
       retries: 10
 
     networks:
-      - dograh-internal
+      dograh-internal:
+        aliases:
+          - dograh-postgres
 
     logging:
       driver: json-file
@@ -126,7 +128,7 @@ services:
       PUBLIC_BASE_URL: https://dograh.phoenix-rtp.com
       PUBLIC_HOST: dograh.phoenix-rtp.com
 
-      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@dograh-postgres:5432/postgres
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
 
       # Self-hosted S3-compatible storage
@@ -229,9 +231,11 @@ networks:
   default:
     name: dokploy-network
     external: true
+
   dokploy-network:
     name: dokploy-network
     external: true
+
   dograh-internal:
     driver: bridge
     internal: true
