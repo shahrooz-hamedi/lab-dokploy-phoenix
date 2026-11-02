@@ -44,8 +44,10 @@ services:
     restart: unless-stopped
 
     networks:
-      - dokploy-network
-      - xui-ipv6-egress
+      dokploy-network: {}
+      xui-ipv6-egress:
+        ipv4_address: 172.19.0.10
+        ipv6_address: fd42:3a91:7c20:2::10
 
 networks:
   default:
