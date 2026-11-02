@@ -42,13 +42,22 @@ services:
       - /tmp
 
     ports:
+      # C-Tunnel Tunnel Ports
       - target: 2083
         published: "2083"
         protocol: tcp
         mode: host
-
       - target: 2083
         published: "2083"
+        protocol: udp
+        mode: host
+      # C-Tunnel Connectivity Tests / Direct Transport
+      - target: 7711
+        published: "7711"
+        protocol: tcp
+        mode: host
+      - target: 7712
+        published: "7712"
         protocol: udp
         mode: host
 
