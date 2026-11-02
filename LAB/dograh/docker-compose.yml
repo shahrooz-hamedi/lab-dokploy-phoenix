@@ -226,9 +226,12 @@ volumes:
 
 
 networks:
+  default:
+    name: dokploy-network
+    external: true
+  dokploy-network:
+    name: dokploy-network
+    external: true
   dograh-internal:
     driver: bridge
     internal: true
-
-  dokploy-network:
-    external: true
