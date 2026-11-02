@@ -83,7 +83,14 @@ RUN chmod 0755 /usr/local/sbin/ctunnel-panel-start \
     && mkdir -p /etc/systemd/system/ctunnel-panel.service.d \
     && printf '[Service]\nExecStart=\nExecStart=/usr/local/sbin/ctunnel-panel-start\n' \
        > /etc/systemd/system/ctunnel-panel.service.d/https.conf
-
+# --------------------------------------------------
+# Permanent PUB <-> LAB site routing
+# --------------------------------------------------
+COPY pub-site-routes /usr/local/sbin/pub-site-routes
+RUN chmod 0755 /usr/local/sbin/pub-site-routes \
+    && mkdir -p /etc/systemd/system/ctunnel-engine@.service.d \
+    && printf '[Service]\nExecStartPost=/usr/local/sbin/pub-site-routes\n' \
+       > /etc/systemd/system/ctunnel-engine@.service.d/site-routes.conf
 # --------------------------------------------------
 # Container runtime
 # --------------------------------------------------
