@@ -1,0 +1,14 @@
+[Unit]
+Description=PUB to LAB site-to-site routes via C-Tunnel
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pub-host-routes
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
