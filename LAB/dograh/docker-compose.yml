@@ -88,7 +88,7 @@ services:
       - minio_data:/data
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -104,6 +104,51 @@ services:
         max-file: "3"
 
 
+  # --------------------------------------------------
+  # MinIO automatic provisioning
+  # --------------------------------------------------
+
+  minio-init:
+    image: ghcr.io/dograh-hq/dograh-api:latest
+    restart: "no"
+
+    entrypoint:
+      - python
+      - /opt/minio-init.py
+
+    depends_on:
+      minio:
+        condition: service_healthy
+
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_BUCKET: voice-audio
+
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID is required}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is required}
+
+    volumes:
+      - ./minio-init.py:/opt/minio-init.py:ro
+      - ./config/minio-policy.json:/config/minio-policy.json:ro
+      - ./config/minio-cors.json:/config/minio-cors.json:ro
+
+    networks:
+      - dograh-internal
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+
+  # --------------------------------------------------
+  # Dograh API
+  # --------------------------------------------------
+
   api:
     image: ghcr.io/dograh-hq/dograh-api:latest
     restart: unless-stopped
@@ -115,6 +160,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
 
     extra_hosts:
       - "storage-dograh.phoenix-rtp.com:10.0.1.18"
@@ -193,6 +240,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
+
+  # --------------------------------------------------
+  # Dograh UI
+  # --------------------------------------------------
 
   ui:
     image: ghcr.io/dograh-hq/dograh-ui:latest
