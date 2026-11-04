@@ -94,8 +94,10 @@ services:
       retries: 10
 
     networks:
-      - dograh-internal
-      - dokploy-network
+      dograh-internal:
+        aliases:
+          - minio
+      dokploy-network: {}
 
     logging:
       driver: json-file
