@@ -42,7 +42,7 @@ services:
       - /tmp
 
     ports:
-      # C-Tunnel Tunnel Ports
+      # C-Tunnel Tunnel Ports (LAB to PUB)
       - target: 2083
         published: "2083"
         protocol: tcp
@@ -51,7 +51,32 @@ services:
         published: "2083"
         protocol: udp
         mode: host
-      # C-Tunnel Connectivity Tests / Direct Transport
+      - target: 2084
+        published: "2084"
+        protocol: tcp
+        mode: host
+      - target: 2084
+        published: "2084"
+        protocol: udp
+        mode: host
+      # C-Tunnel Tunnel Ports (HUB to PUB)
+      - target: 2087
+        published: "2087"
+        protocol: tcp
+        mode: host
+      - target: 2087
+        published: "2087"
+        protocol: udp
+        mode: host
+      - target: 2088
+        published: "2088"
+        protocol: tcp
+        mode: host
+      - target: 2088
+        published: "2088"
+        protocol: udp
+        mode: host
+      # C-Tunnel Tunnel Ports (Connection Test)
       - target: 7711
         published: "7711"
         protocol: tcp
@@ -60,6 +85,7 @@ services:
         published: "7712"
         protocol: udp
         mode: host
+  
 
     networks:
       default: {}
