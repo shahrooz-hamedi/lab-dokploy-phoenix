@@ -1,0 +1,92 @@
+name: hub-tunnel
+
+services:
+  tunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: hub-tunnel-ubuntu:24.04
+
+    hostname: hub-tunnel
+    restart: unless-stopped
+    stop_grace_period: 30s
+    init: false
+    cgroup: host
+    sysctls:
+      net.ipv4.tcp_congestion_control: bbr
+      net.ipv4.ip_forward: "1"
+      net.ipv6.conf.all.forwarding: "1"
+      net.ipv6.conf.default.forwarding: "1"
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+      - NET_RAW
+
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+    security_opt:
+      - apparmor:unconfined
+
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      # for C-Tunnel Only:
+      - ctunnel-config:/etc/ctunnel
+      - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com/fullchain.pem:/etc/ctunnel/certs/fullchain.pem:ro
+      - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com/privkey.pem:/etc/ctunnel/certs/privkey.pem:ro
+
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+
+    ports:
+      # C-Tunnel Tunnel Ports
+      - target: 2083
+        published: "2083"
+        protocol: tcp
+        mode: host
+      - target: 2083
+        published: "2083"
+        protocol: udp
+        mode: host
+      # C-Tunnel Connectivity Tests / Direct Transport
+      - target: 7711
+        published: "7711"
+        protocol: tcp
+        mode: host
+      - target: 7712
+        published: "7712"
+        protocol: udp
+        mode: host
+
+    networks:
+      default: {}
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.100
+        ipv6_address: fd42:3a91:7c20:3::100
+
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+        reservations:
+          memory: 512M
+
+volumes:
+  # for C-Tunnel Only:
+  ctunnel-config:
+
+networks:
+  default:
+    name: dokploy-network
+    external: true
+
+  xui-ipv6-egress:
+    external: true

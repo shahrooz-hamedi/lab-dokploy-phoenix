@@ -31,9 +31,6 @@ services:
 
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - xraymesh-config:/etc/xraymesh
-      - xraymesh-install:/opt/xraymesh
-      - xraymesh-state:/var/lib/xraymesh
       # for C-Tunnel Only:
       - ctunnel-config:/etc/ctunnel
       - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com/fullchain.pem:/etc/ctunnel/certs/fullchain.pem:ro
@@ -83,9 +80,6 @@ services:
           memory: 512M
 
 volumes:
-  xraymesh-config:
-  xraymesh-install:
-  xraymesh-state:
   # for C-Tunnel Only:
   ctunnel-config:
 

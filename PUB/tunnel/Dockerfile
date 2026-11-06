@@ -3,7 +3,7 @@ FROM ubuntu:24.04
 ENV container=docker
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG CTUNNEL_VERSION=v0.4.1
+ARG CTUNNEL_VERSION=v1.0.0
 
 # --------------------------------------------------
 # Base packages
@@ -53,7 +53,7 @@ RUN set -eux; \
     WORK="$(mktemp -d)"; \
     cd "$WORK"; \
     BASE="https://github.com/CIAUB/C-Tunnel/releases/download/${CTUNNEL_VERSION}"; \
-    ASSETS="ctunnel-linux-${ARCH} ctunnel-engine-linux-${ARCH} ctunnel-kernel.sh ctunnel@.service ctunnel-engine@.service ctunnel-panel.service"; \
+    ASSETS="ctunnel-linux-${ARCH} ctunnel-engine-linux-${ARCH} ctunnel-kernel.sh ctunnel@.service ctunnel-engine@.service ctunnel-panel.service ctunnel-agent.service"; \
     curl -fsSLO "${BASE}/SHA256SUMS"; \
     for FILE in $ASSETS; do \
         curl -fsSLO "${BASE}/${FILE}"; \
@@ -66,12 +66,15 @@ RUN set -eux; \
     install -D -m 0644 ctunnel@.service /etc/systemd/system/ctunnel@.service; \
     install -D -m 0644 ctunnel-engine@.service /etc/systemd/system/ctunnel-engine@.service; \
     install -D -m 0644 ctunnel-panel.service /etc/systemd/system/ctunnel-panel.service; \
+    install -D -m 0644 ctunnel-agent.service /etc/systemd/system/ctunnel-agent.service; \
     mkdir -p \
         /etc/ctunnel/tunnels \
         /etc/ctunnel/certs \
         /etc/systemd/system/multi-user.target.wants; \
     ln -sfn ../ctunnel-panel.service \
         /etc/systemd/system/multi-user.target.wants/ctunnel-panel.service; \
+    ln -sfn ../ctunnel-agent.service \
+        /etc/systemd/system/multi-user.target.wants/ctunnel-agent.service; \
     rm -rf "$WORK"
 
 # --------------------------------------------------
@@ -83,14 +86,18 @@ RUN chmod 0755 /usr/local/sbin/ctunnel-panel-start \
     && mkdir -p /etc/systemd/system/ctunnel-panel.service.d \
     && printf '[Service]\nExecStart=\nExecStart=/usr/local/sbin/ctunnel-panel-start\n' \
        > /etc/systemd/system/ctunnel-panel.service.d/https.conf
+
 # --------------------------------------------------
-# Permanent PUB <-> LAB site routing
+# Permanent PUB <-> LAB routes
+# Apply only to the existing pub-lab tunnel instance.
 # --------------------------------------------------
 COPY pub-site-routes /usr/local/sbin/pub-site-routes
+
 RUN chmod 0755 /usr/local/sbin/pub-site-routes \
-    && mkdir -p /etc/systemd/system/ctunnel-engine@.service.d \
+    && mkdir -p /etc/systemd/system/ctunnel-engine@pub-lab.service.d \
     && printf '[Service]\nExecStartPost=/usr/local/sbin/pub-site-routes\n' \
-       > /etc/systemd/system/ctunnel-engine@.service.d/site-routes.conf
+       > /etc/systemd/system/ctunnel-engine@pub-lab.service.d/site-routes.conf
+
 # --------------------------------------------------
 # Container runtime
 # --------------------------------------------------
