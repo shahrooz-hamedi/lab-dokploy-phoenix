@@ -88,6 +88,24 @@ RUN chmod 0755 /usr/local/sbin/ctunnel-panel-start \
        > /etc/systemd/system/ctunnel-panel.service.d/https.conf
 
 # --------------------------------------------------
+# Permanent HUB <-> PUB and HUB <-> LAB routes
+# Each route hook is tied to its own tunnel instance.
+# --------------------------------------------------
+COPY hub-pub-routes /usr/local/sbin/hub-pub-routes
+COPY hub-lab-routes /usr/local/sbin/hub-lab-routes
+
+RUN chmod 0755 \
+        /usr/local/sbin/hub-pub-routes \
+        /usr/local/sbin/hub-lab-routes \
+    && mkdir -p \
+        /etc/systemd/system/ctunnel-engine@hub-pub.service.d \
+        /etc/systemd/system/ctunnel-engine@hub-lab.service.d \
+    && printf '[Service]\nExecStartPost=/usr/local/sbin/hub-pub-routes\n' \
+       > /etc/systemd/system/ctunnel-engine@hub-pub.service.d/site-routes.conf \
+    && printf '[Service]\nExecStartPost=/usr/local/sbin/hub-lab-routes\n' \
+       > /etc/systemd/system/ctunnel-engine@hub-lab.service.d/site-routes.conf
+       
+# --------------------------------------------------
 # Container runtime
 # --------------------------------------------------
 STOPSIGNAL SIGRTMIN+3

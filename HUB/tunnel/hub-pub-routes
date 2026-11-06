@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+IFACE="ct-hub-pub"
+REMOTE_NET="172.19.0.0/16"
+
+echo "[HUB-PUB-ROUTES] Waiting for ${IFACE}..."
+
+i=0
+until ip link show dev "$IFACE" >/dev/null 2>&1; do
+    i=$((i + 1))
+    if [ "$i" -ge 30 ]; then
+        echo "[HUB-PUB-ROUTES] ERROR: ${IFACE} is unavailable." >&2
+        exit 1
+    fi
+    sleep 1
+done
+
+ip route replace "$REMOTE_NET" dev "$IFACE"
+
+echo "[HUB-PUB-ROUTES] Installed route:"
+ip route show "$REMOTE_NET"
