@@ -16,11 +16,16 @@ until ip link show dev "$BRIDGE" >/dev/null 2>&1; do
     sleep 1
 done
 
-echo "[PUB-HOST-ROUTES] Installing LAB routes..."
+echo "[PUB-HOST-ROUTES] Installing LAB and HUB routes..."
 
+# PUB <-> LAB
 ip route replace 192.168.10.0/24 via "$GATEWAY" dev "$BRIDGE"
 ip route replace 192.168.11.0/24 via "$GATEWAY" dev "$BRIDGE"
+
+# PUB <-> HUB
+ip route replace 172.23.0.0/16 via "$GATEWAY" dev "$BRIDGE"
 
 echo "[PUB-HOST-ROUTES] Installed routes:"
 ip route show 192.168.10.0/24
 ip route show 192.168.11.0/24
+ip route show 172.23.0.0/16

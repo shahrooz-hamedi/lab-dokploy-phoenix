@@ -88,16 +88,23 @@ RUN chmod 0755 /usr/local/sbin/ctunnel-panel-start \
        > /etc/systemd/system/ctunnel-panel.service.d/https.conf
 
 # --------------------------------------------------
-# Permanent PUB <-> LAB routes
-# Apply only to the existing pub-lab tunnel instance.
+# Permanent PUB <-> LAB and PUB <-> HUB routes
+# Each route hook is tied to its own tunnel instance.
 # --------------------------------------------------
-COPY pub-site-routes /usr/local/sbin/pub-site-routes
+COPY pub-lab-routes /usr/local/sbin/pub-lab-routes
+COPY pub-hub-routes /usr/local/sbin/pub-hub-routes
 
-RUN chmod 0755 /usr/local/sbin/pub-site-routes \
-    && mkdir -p /etc/systemd/system/ctunnel-engine@pub-lab.service.d \
-    && printf '[Service]\nExecStartPost=/usr/local/sbin/pub-site-routes\n' \
-       > /etc/systemd/system/ctunnel-engine@pub-lab.service.d/site-routes.conf
-
+RUN chmod 0755 \
+        /usr/local/sbin/pub-lab-routes \
+        /usr/local/sbin/pub-hub-routes \
+    && mkdir -p \
+        /etc/systemd/system/ctunnel-engine@pub-lab.service.d \
+        /etc/systemd/system/ctunnel-engine@pub-hub.service.d \
+    && printf '[Service]\nExecStartPost=/usr/local/sbin/pub-lab-routes\n' \
+       > /etc/systemd/system/ctunnel-engine@pub-lab.service.d/site-routes.conf \
+    && printf '[Service]\nExecStartPost=/usr/local/sbin/pub-hub-routes\n' \
+       > /etc/systemd/system/ctunnel-engine@pub-hub.service.d/site-routes.conf
+       
 # --------------------------------------------------
 # Container runtime
 # --------------------------------------------------

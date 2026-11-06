@@ -1,5 +1,5 @@
 [Unit]
-Description=PUB to LAB site-to-site routes via C-Tunnel
+Description=PUB site-to-site routes via C-Tunnel
 Wants=network-online.target
 After=network-online.target docker.service
 Requires=docker.service
