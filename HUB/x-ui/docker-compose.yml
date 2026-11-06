@@ -1,7 +1,7 @@
 services:
   3x-ui:
     image: ghcr.io/mhsanaei/3x-ui:latest
-    pull_policy: never
+    pull_policy: always
 
     environment:
       XUI_DB_TYPE: "sqlite"
@@ -11,7 +11,7 @@ services:
       XUI_PORT: "2095"
       XUI_INIT_WEB_BASE_PATH: "${XUI_INIT_WEB_BASE_PATH:?Set XUI_INIT_WEB_BASE_PATH in .env}"
 
-      # TLS is terminated by the reverse proxy.
+      # TLS is terminated by Traefik
       XUI_SKIP_HSTS: "true"
 
       # Security and logging
@@ -34,18 +34,23 @@ services:
       - /dev/net/tun:/dev/net/tun
 
     ports:
+      # Subscription port
+      - "8443:8443/tcp"
+      # Xray inbound ports
       - "2053:2053/tcp"
       - "2053:2053/udp"
       - "7090:7090/udp"
-      - "7050:7050/udp"
-      - "7040:7040/udp"
+      - "7080:7080/udp"
+      - "7070:7070/udp"
 
     tty: true
     restart: unless-stopped
 
     networks:
-      - dokploy-network
-      - xui-ipv6-egress
+      dokploy-network: {}
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.10
+        ipv6_address: fd42:3a91:7c20:3::10
 
 networks:
   default:
@@ -57,4 +62,14 @@ networks:
     external: true
 
   xui-ipv6-egress:
-    external: true
+    name: xui-ipv6-egress
+    driver: bridge
+    enable_ipv6: true
+    driver_opts:
+      com.docker.network.bridge.name: br-xui6
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+          gateway: 172.23.0.1
+        - subnet: fd42:3a91:7c20:3::/64
+          gateway: fd42:3a91:7c20:3::1
