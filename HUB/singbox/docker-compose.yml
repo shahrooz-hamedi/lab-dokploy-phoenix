@@ -8,43 +8,44 @@ services:
       - /bin/bash
       - -ec
 
-    command: |
-      umask 077
-      mkdir -p /run/sing-box
+    command:
+      - |
+        umask 077
+        mkdir -p /run/sing-box
 
-      cat > /run/sing-box/config.json <<EOF
-      {
-        "log": {
-          "level": "info",
-          "timestamp": true
-        },
-        "inbounds": [
-          {
-            "type": "socks",
-            "tag": "socks-in",
-            "listen": "172.23.0.50",
-            "listen_port": 1080
+        cat > /run/sing-box/config.json <<EOF
+        {
+          "log": {
+            "level": "info",
+            "timestamp": true
+          },
+          "inbounds": [
+            {
+              "type": "socks",
+              "tag": "socks-in",
+              "listen": "172.23.0.50",
+              "listen_port": 1080
+            }
+          ],
+          "outbounds": [
+            {
+              "type": "shadowsocks",
+              "tag": "ss-upstream",
+              "server": "172.23.0.10",
+              "server_port": 1010,
+              "method": "$${SS_METHOD}",
+              "password": "$${SS_PASSWORD}",
+              "network": "tcp"
+            }
+          ],
+          "route": {
+            "final": "ss-upstream"
           }
-        ],
-        "outbounds": [
-          {
-            "type": "shadowsocks",
-            "tag": "ss-upstream",
-            "server": "172.23.0.10",
-            "server_port": 1010,
-            "method": "$${SS_METHOD}",
-            "password": "$${SS_PASSWORD}",
-            "network": "tcp"
-          }
-        ],
-        "route": {
-          "final": "ss-upstream"
         }
-      }
-      EOF
+        EOF
 
-      /usr/local/bin/sing-box check -c /run/sing-box/config.json
-      exec /usr/local/bin/sing-box run -c /run/sing-box/config.json
+        /usr/local/bin/sing-box check -c /run/sing-box/config.json
+        exec /usr/local/bin/sing-box run -c /run/sing-box/config.json
 
     environment:
       SS_METHOD: ${SS_METHOD:?SS_METHOD must be set in Dokploy}
