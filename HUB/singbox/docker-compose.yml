@@ -1,3 +1,4 @@
+
 services:
   sing-box:
     image: ghcr.io/sagernet/sing-box:v1.14.2
@@ -25,6 +26,12 @@ services:
               "tag": "socks-in",
               "listen": "172.23.0.50",
               "listen_port": 1080
+            },
+            {
+              "type": "http",
+              "tag": "dokploy-http-in",
+              "listen": "10.0.1.50",
+              "listen_port": 3128
             }
           ],
           "outbounds": [
@@ -59,7 +66,14 @@ services:
         ipv4_address: 172.23.0.50
         ipv6_address: fd42:3a91:7c20:3::50
 
+      dokploy-network:
+        ipv4_address: 10.0.1.50
+
 networks:
   xui-ipv6-egress:
     external: true
     name: xui-ipv6-egress
+
+  dokploy-network:
+    external: true
+    name: dokploy-network
