@@ -1,3 +1,4 @@
+
 #!/bin/sh
 set -eu
 
@@ -18,14 +19,20 @@ done
 
 echo "[HUB-HOST-ROUTES] Installing PUB and LAB routes..."
 
-# HUB <-> PUB
+# Remote site networks
 ip route replace 172.19.0.0/16 via "$GATEWAY" dev "$BRIDGE"
-
-# HUB <-> LAB
 ip route replace 192.168.10.0/24 via "$GATEWAY" dev "$BRIDGE"
 ip route replace 192.168.11.0/24 via "$GATEWAY" dev "$BRIDGE"
+
+# Return routes to remote C-Tunnel peer addresses
+ip route replace 10.100.20.100/32 via "$GATEWAY" dev "$BRIDGE"
+ip route replace 10.100.30.10/32 via "$GATEWAY" dev "$BRIDGE"
 
 echo "[HUB-HOST-ROUTES] Installed routes:"
 ip route show 172.19.0.0/16
 ip route show 192.168.10.0/24
 ip route show 192.168.11.0/24
+ip route show 10.100.20.100/32
+ip route show 10.100.30.10/32
+
+echo "[HUB-HOST-ROUTES] Configuration complete."
