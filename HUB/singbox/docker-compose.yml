@@ -1,0 +1,64 @@
+services:
+  sing-box:
+    image: ghcr.io/sagernet/sing-box:v1.14.2
+    container_name: hub-sing-box
+    restart: unless-stopped
+
+    entrypoint:
+      - /bin/bash
+      - -ec
+
+    command: |
+      umask 077
+      mkdir -p /run/sing-box
+
+      cat > /run/sing-box/config.json <<EOF
+      {
+        "log": {
+          "level": "info",
+          "timestamp": true
+        },
+        "inbounds": [
+          {
+            "type": "socks",
+            "tag": "socks-in",
+            "listen": "172.23.0.50",
+            "listen_port": 1080
+          }
+        ],
+        "outbounds": [
+          {
+            "type": "shadowsocks",
+            "tag": "ss-upstream",
+            "server": "172.23.0.10",
+            "server_port": 1010,
+            "method": "$${SS_METHOD}",
+            "password": "$${SS_PASSWORD}",
+            "network": "tcp"
+          }
+        ],
+        "route": {
+          "final": "ss-upstream"
+        }
+      }
+      EOF
+
+      /usr/local/bin/sing-box check -c /run/sing-box/config.json
+      exec /usr/local/bin/sing-box run -c /run/sing-box/config.json
+
+    environment:
+      SS_METHOD: ${SS_METHOD:?SS_METHOD must be set in Dokploy}
+      SS_PASSWORD: ${SS_PASSWORD:?SS_PASSWORD must be set in Dokploy}
+
+    tmpfs:
+      - /run/sing-box:rw,noexec,nosuid,size=1m
+
+    networks:
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.50
+        ipv6_address: fd42:3a91:7c20:3::50
+
+networks:
+  xui-ipv6-egress:
+    external: true
+    name: xui-ipv6-egress
