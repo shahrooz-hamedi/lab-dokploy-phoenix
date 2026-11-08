@@ -1,3 +1,4 @@
+
 services:
   speaches:
     image: ghcr.io/speaches-ai/speaches:latest-cpu
@@ -7,7 +8,13 @@ services:
 
     environment:
       API_KEY: ${API_KEY:?API_KEY must be set}
-      PRELOAD_MODELS: ${PRELOAD_MODELS}
+
+      HTTP_PROXY: http://172.23.0.50:8080
+      HTTPS_PROXY: http://172.23.0.50:8080
+      http_proxy: http://172.23.0.50:8080
+      https_proxy: http://172.23.0.50:8080
+      NO_PROXY: localhost,127.0.0.1,::1
+      no_proxy: localhost,127.0.0.1,::1
 
       WHISPER__INFERENCE_DEVICE: cpu
       WHISPER__COMPUTE_TYPE: int8
