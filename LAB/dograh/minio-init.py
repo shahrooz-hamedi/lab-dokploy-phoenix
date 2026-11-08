@@ -1,5 +1,7 @@
+
 #!/opt/venv/bin/python
 
+import difflib
 import json
 import os
 import sys
@@ -41,6 +43,47 @@ def load_json(path):
             return json.load(handle)
     except Exception as exc:
         fail(f"Cannot read {path}: {exc}")
+
+
+def normalize_policy(document):
+    """
+    Normalize policy JSON for comparison.
+
+    JSON object key ordering and whitespace are irrelevant.
+    Policy statement and permission-list ordering are also
+    irrelevant, so lists are sorted by their canonical JSON.
+    """
+    if isinstance(document, str):
+        try:
+            document = json.loads(document)
+        except json.JSONDecodeError as exc:
+            fail(f"Could not parse existing policy JSON: {exc}")
+
+    if (
+        isinstance(document, dict)
+        and "policy" in document
+        and len(document) == 1
+    ):
+        return normalize_policy(document["policy"])
+
+    if isinstance(document, dict):
+        return {
+            key: normalize_policy(value)
+            for key, value in sorted(document.items())
+        }
+
+    if isinstance(document, list):
+        normalized = [normalize_policy(item) for item in document]
+        return sorted(
+            normalized,
+            key=lambda item: json.dumps(
+                item,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
+        )
+
+    return document
 
 
 def make_s3_client(access_key, secret_key):
@@ -132,7 +175,7 @@ def ensure_app_user(admin):
         return
 
     except MinioAdminException as exc:
-        if exc._code != "404":
+        if str(exc._code) != "404":
             fail(f"Could not inspect application user: {exc}")
 
     try:
@@ -145,36 +188,72 @@ def ensure_app_user(admin):
 def ensure_app_policy(admin, policy_document):
     try:
         existing = admin.policy_info(POLICY_NAME)
-        existing_document = json.loads(existing)
-
-        if existing_document == policy_document:
-            print("Existing application policy matches.", flush=True)
-            return
-
-        if (
-            isinstance(existing_document, dict)
-            and existing_document.get("policy") == policy_document
-        ):
-            print("Existing application policy matches.", flush=True)
-            return
-
-        fail(
-            "An existing application policy differs from the repository "
-            "policy. It was not overwritten."
-        )
 
     except MinioAdminException as exc:
-        if exc._code != "404":
+        if str(exc._code) != "404":
             fail(f"Could not inspect application policy: {exc}")
 
+        try:
+            admin.policy_add(
+                POLICY_NAME,
+                policy_file=POLICY_FILE,
+            )
+            print("Created Dograh application policy.", flush=True)
+            return
+        except Exception as create_exc:
+            fail(f"Could not create application policy: {create_exc}")
+
     try:
-        admin.policy_add(
-            POLICY_NAME,
-            policy_file=POLICY_FILE,
+        existing_document = (
+            json.loads(existing) if isinstance(existing, str) else existing
         )
-        print("Created Dograh application policy.", flush=True)
+
+        normalized_existing = normalize_policy(existing_document)
+        normalized_desired = normalize_policy(policy_document)
+
     except Exception as exc:
-        fail(f"Could not create application policy: {exc}")
+        fail(f"Could not compare application policies: {exc}")
+
+    if normalized_existing == normalized_desired:
+        print(
+            "Existing application policy matches repository policy.",
+            flush=True,
+        )
+        return
+
+    print(
+        "POLICY DIAGNOSTIC: Existing MinIO policy differs "
+        "from repository policy.",
+        flush=True,
+    )
+
+    existing_text = json.dumps(
+        existing_document,
+        indent=2,
+        sort_keys=True,
+    ).splitlines()
+
+    desired_text = json.dumps(
+        policy_document,
+        indent=2,
+        sort_keys=True,
+    ).splitlines()
+
+    print("========== POLICY DIFFERENCE ==========", flush=True)
+
+    for line in difflib.unified_diff(
+        existing_text,
+        desired_text,
+        fromfile="existing-minio-policy",
+        tofile="repository-policy",
+        lineterm="",
+    ):
+        print(line, flush=True)
+
+    fail(
+        "Existing application policy differs from repository policy. "
+        "The existing policy was NOT modified."
+    )
 
 
 def attach_app_policy(admin):
