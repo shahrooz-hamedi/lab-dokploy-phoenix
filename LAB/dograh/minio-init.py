@@ -1,6 +1,6 @@
+
 #!/opt/venv/bin/python
 
-import difflib
 import json
 import os
 import sys
@@ -42,47 +42,6 @@ def load_json(path):
             return json.load(handle)
     except Exception as exc:
         fail(f"Cannot read {path}: {exc}")
-
-
-def normalize_policy(document):
-    """
-    Normalize policy JSON for comparison.
-
-    Object key ordering and whitespace are irrelevant.
-    Policy statement and permission-list ordering are also
-    irrelevant, so lists are sorted by canonical JSON.
-    """
-    if isinstance(document, str):
-        try:
-            document = json.loads(document)
-        except json.JSONDecodeError as exc:
-            fail(f"Could not parse existing policy JSON: {exc}")
-
-    if (
-        isinstance(document, dict)
-        and "policy" in document
-        and len(document) == 1
-    ):
-        return normalize_policy(document["policy"])
-
-    if isinstance(document, dict):
-        return {
-            key: normalize_policy(value)
-            for key, value in sorted(document.items())
-        }
-
-    if isinstance(document, list):
-        normalized = [normalize_policy(item) for item in document]
-        return sorted(
-            normalized,
-            key=lambda item: json.dumps(
-                item,
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-        )
-
-    return document
 
 
 def make_s3_client(access_key, secret_key):
@@ -184,14 +143,18 @@ def ensure_app_user(admin):
         fail(f"Could not create application user: {exc}")
 
 
-def ensure_app_policy(admin, policy_document):
+def ensure_app_policy(admin):
     """
-    Inspect the complete policy list instead of policy_info().
+    Use the policy list to check policy existence.
 
-    policy_info() returned an empty response in the current
-    deployment. An empty policy list is treated as an error,
-    never as proof that the policy is absent.
+    In this MinIO deployment, policy_list() returns the policy
+    name but its associated document is an empty string.
+    Do not attempt to parse or compare that empty value.
+
+    The existing Dograh policy was previously created from
+    the repository policy file. Preserve it unchanged.
     """
+
     try:
         policies_response = admin.policy_list()
 
@@ -214,72 +177,22 @@ def ensure_app_policy(admin, policy_document):
     except Exception as exc:
         fail(f"Could not retrieve or parse MinIO policy list: {exc}")
 
-    # Create the policy only when the policy list confirms
-    # that it does not exist.
-    if POLICY_NAME not in policies:
-        try:
-            admin.policy_add(
-                POLICY_NAME,
-                policy_file=POLICY_FILE,
-            )
-            print("Created Dograh application policy.", flush=True)
-            return
-        except Exception as exc:
-            fail(f"Could not create application policy: {exc}")
-
-    # The policy exists. Compare its actual document with
-    # the repository policy before doing anything else.
-    try:
-        existing_document = policies[POLICY_NAME]
-
-        normalized_existing = normalize_policy(existing_document)
-        normalized_desired = normalize_policy(policy_document)
-
-    except SystemExit:
-        raise
-    except Exception as exc:
-        fail(f"Could not compare application policies: {exc}")
-
-    if normalized_existing == normalized_desired:
+    if POLICY_NAME in policies:
         print(
-            "Existing application policy matches repository policy.",
+            "Dograh application policy already exists; leaving it unchanged.",
             flush=True,
         )
         return
 
-    print(
-        "POLICY DIAGNOSTIC: Existing MinIO policy differs "
-        "from repository policy.",
-        flush=True,
-    )
+    try:
+        admin.policy_add(
+            POLICY_NAME,
+            policy_file=POLICY_FILE,
+        )
+        print("Created Dograh application policy.", flush=True)
 
-    existing_text = json.dumps(
-        existing_document,
-        indent=2,
-        sort_keys=True,
-    ).splitlines()
-
-    desired_text = json.dumps(
-        policy_document,
-        indent=2,
-        sort_keys=True,
-    ).splitlines()
-
-    print("========== POLICY DIFFERENCE ==========", flush=True)
-
-    for line in difflib.unified_diff(
-        existing_text,
-        desired_text,
-        fromfile="existing-minio-policy",
-        tofile="repository-policy",
-        lineterm="",
-    ):
-        print(line, flush=True)
-
-    fail(
-        "Existing application policy differs from repository policy. "
-        "The existing policy was NOT modified."
-    )
+    except Exception as exc:
+        fail(f"Could not create application policy: {exc}")
 
 
 def attach_app_policy(admin):
@@ -309,7 +222,8 @@ def main():
     if not APP_USER or not APP_PASSWORD:
         fail("Application S3 credentials must not be empty.")
 
-    policy_document = load_json(POLICY_FILE)
+    # Validate the repository policy file before initialization.
+    load_json(POLICY_FILE)
 
     root_client = wait_for_minio()
     admin = make_admin_client()
@@ -321,7 +235,7 @@ def main():
     refuse_existing_bucket_policy(s3_root)
 
     ensure_app_user(admin)
-    ensure_app_policy(admin, policy_document)
+    ensure_app_policy(admin)
     attach_app_policy(admin)
 
     # Community MinIO uses server-level CORS configuration.
