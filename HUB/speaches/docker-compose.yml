@@ -1,0 +1,36 @@
+services:
+  speaches:
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    container_name: hub-speaches
+    restart: unless-stopped
+    init: true
+
+    environment:
+      API_KEY: ${API_KEY:?API_KEY must be set}
+      PRELOAD_MODELS: ${PRELOAD_MODELS}
+
+      WHISPER__INFERENCE_DEVICE: cpu
+      WHISPER__COMPUTE_TYPE: int8
+      WHISPER__CPU_THREADS: "3"
+      WHISPER__NUM_WORKERS: "1"
+
+      STT_MODEL_TTL: "300"
+      TTS_MODEL_TTL: "300"
+
+    volumes:
+      - speaches-model-cache:/home/ubuntu/.cache/huggingface/hub
+
+    networks:
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.30
+        ipv6_address: fd42:3a91:7c20:3::30
+
+    # No published host ports.
+
+volumes:
+  speaches-model-cache:
+
+networks:
+  xui-ipv6-egress:
+    external: true
+    name: xui-ipv6-egress
