@@ -1,4 +1,3 @@
-
 services:
   speaches:
     image: ghcr.io/speaches-ai/speaches:latest-cpu
