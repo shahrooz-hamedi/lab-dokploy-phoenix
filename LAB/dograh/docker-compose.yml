@@ -181,9 +181,12 @@ volumes:
     name: dograh_minio_data
 
 networks:
-  dokploy-network:
+  default:
     external: true
     name: dokploy-network
+
+  dokploy-network:
+    external: true
 
   dograh-internal:
     name: dograh-internal
