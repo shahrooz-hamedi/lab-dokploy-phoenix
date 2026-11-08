@@ -26,7 +26,6 @@ APP_USER = os.environ["AWS_ACCESS_KEY_ID"]
 APP_PASSWORD = os.environ["AWS_SECRET_ACCESS_KEY"]
 
 POLICY_FILE = "/config/minio-policy.json"
-CORS_FILE = "/config/minio-cors.json"
 
 S3_ENDPOINT = f"http://{ENDPOINT}"
 
@@ -189,31 +188,6 @@ def attach_app_policy(admin):
         fail(f"Could not attach application policy: {exc}")
 
 
-def ensure_bucket_cors(s3_root, desired_cors):
-    try:
-        s3_root.put_bucket_cors(
-            Bucket=BUCKET,
-            CORSConfiguration=desired_cors,
-        )
-        print("Applied bucket CORS.", flush=True)
-    except Exception as exc:
-        fail(f"Could not apply bucket CORS: {exc}")
-
-    try:
-        actual = s3_root.get_bucket_cors(Bucket=BUCKET)
-
-        expected_rules = desired_cors.get("CORSRules", [])
-        actual_rules = actual.get("CORSRules", [])
-
-        if actual_rules != expected_rules:
-            fail("Bucket CORS verification did not match the config file.")
-
-        print("Bucket CORS verified.", flush=True)
-
-    except Exception as exc:
-        fail(f"Could not verify bucket CORS: {exc}")
-
-
 def verify_app_access():
     app_client = make_s3_client(APP_USER, APP_PASSWORD)
 
@@ -231,7 +205,6 @@ def main():
         fail("Application S3 credentials must not be empty.")
 
     policy_document = load_json(POLICY_FILE)
-    cors_document = load_json(CORS_FILE)
 
     root_client = wait_for_minio()
     admin = make_admin_client()
@@ -246,7 +219,14 @@ def main():
     ensure_app_policy(admin, policy_document)
     attach_app_policy(admin)
 
-    ensure_bucket_cors(s3_root, cors_document)
+    # Community MinIO uses server-level CORS configuration.
+    # Per-bucket PutBucketCors is not supported by this image.
+    print(
+        "Skipping per-bucket CORS; use MINIO_API_CORS_ALLOW_ORIGIN "
+        "on the MinIO service.",
+        flush=True,
+    )
+
     verify_app_access()
 
     print("Dograh MinIO initialization completed successfully.", flush=True)
