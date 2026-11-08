@@ -49,9 +49,9 @@ def normalize_policy(document):
     """
     Normalize policy JSON for comparison.
 
-    JSON object key ordering and whitespace are irrelevant.
+    Object key ordering and whitespace are irrelevant.
     Policy statement and permission-list ordering are also
-    irrelevant, so lists are sorted by their canonical JSON.
+    irrelevant, so lists are sorted by canonical JSON.
     """
     if isinstance(document, str):
         try:
@@ -186,13 +186,38 @@ def ensure_app_user(admin):
 
 
 def ensure_app_policy(admin, policy_document):
+    """
+    Inspect the complete policy list instead of policy_info().
+
+    policy_info() returned an empty response in the current
+    deployment. An empty policy list is treated as an error,
+    never as proof that the policy is absent.
+    """
     try:
-        existing = admin.policy_info(POLICY_NAME)
+        policies_response = admin.policy_list()
 
-    except MinioAdminException as exc:
-        if str(exc._code) != "404":
-            fail(f"Could not inspect application policy: {exc}")
+        if not policies_response or not policies_response.strip():
+            fail(
+                "MinIO returned an empty policy list. "
+                "Cannot safely determine whether the application policy exists."
+            )
 
+        policies = json.loads(policies_response)
+
+        if not isinstance(policies, dict):
+            fail(
+                "MinIO returned an unexpected policy-list format. "
+                "Expected a JSON object."
+            )
+
+    except SystemExit:
+        raise
+    except Exception as exc:
+        fail(f"Could not retrieve or parse MinIO policy list: {exc}")
+
+    # Create the policy only when the policy list confirms
+    # that it does not exist.
+    if POLICY_NAME not in policies:
         try:
             admin.policy_add(
                 POLICY_NAME,
@@ -200,17 +225,19 @@ def ensure_app_policy(admin, policy_document):
             )
             print("Created Dograh application policy.", flush=True)
             return
-        except Exception as create_exc:
-            fail(f"Could not create application policy: {create_exc}")
+        except Exception as exc:
+            fail(f"Could not create application policy: {exc}")
 
+    # The policy exists. Compare its actual document with
+    # the repository policy before doing anything else.
     try:
-        existing_document = (
-            json.loads(existing) if isinstance(existing, str) else existing
-        )
+        existing_document = policies[POLICY_NAME]
 
         normalized_existing = normalize_policy(existing_document)
         normalized_desired = normalize_policy(policy_document)
 
+    except SystemExit:
+        raise
     except Exception as exc:
         fail(f"Could not compare application policies: {exc}")
 
