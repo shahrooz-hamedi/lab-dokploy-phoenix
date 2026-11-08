@@ -1,4 +1,3 @@
-
 #!/opt/venv/bin/python
 
 import difflib
