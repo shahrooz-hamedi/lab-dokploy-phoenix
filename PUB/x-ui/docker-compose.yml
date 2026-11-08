@@ -34,8 +34,6 @@ services:
       - /dev/net/tun:/dev/net/tun
 
     ports:
-      # Subscription port
-      - "8443:8443/tcp"
       # Xray inbound ports
       - "2053:2053/tcp"
       - "2053:2053/udp"
