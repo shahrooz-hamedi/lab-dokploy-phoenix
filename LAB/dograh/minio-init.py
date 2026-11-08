@@ -10,7 +10,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from minio import Minio
-from minio.admin import MinioAdmin
+from minio.minioadmin import MinioAdmin
 from minio.credentials import StaticProvider
 from minio.error import MinioAdminException
 
@@ -152,7 +152,10 @@ def ensure_app_policy(admin, policy_document):
             print("Existing application policy matches.", flush=True)
             return
 
-        if existing_document.get("policy") == policy_document:
+        if (
+            isinstance(existing_document, dict)
+            and existing_document.get("policy") == policy_document
+        ):
             print("Existing application policy matches.", flush=True)
             return
 
@@ -168,7 +171,7 @@ def ensure_app_policy(admin, policy_document):
     try:
         admin.policy_add(
             POLICY_NAME,
-            policy=policy_document,
+            policy_file=POLICY_FILE,
         )
         print("Created Dograh application policy.", flush=True)
     except Exception as exc:
