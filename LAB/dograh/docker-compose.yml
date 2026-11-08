@@ -85,7 +85,6 @@ services:
     volumes:
       - ./minio-init.py:/opt/minio-init.py:ro
       - ./config/minio-policy.json:/config/minio-policy.json:ro
-      - ./config/minio-cors.json:/config/minio-cors.json:ro
     depends_on:
       minio:
         condition: service_healthy
