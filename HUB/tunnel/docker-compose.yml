@@ -85,8 +85,8 @@ services:
         published: "7712"
         protocol: udp
         mode: host
-      - target: 52266
-        published: "52266"
+      - target: 7719
+        published: "7719"
         protocol: udp
         mode: host
 
