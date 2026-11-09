@@ -2,6 +2,7 @@
 set -eu
 
 IFACE="ct-pub-lab"
+REMOTE_PEER="10.100.10.10"
 
 echo "[PUB-SITE-ROUTES] Waiting for ${IFACE}..."
 
@@ -15,10 +16,10 @@ until ip link show dev "$IFACE" >/dev/null 2>&1; do
     sleep 1
 done
 
-echo "[PUB-SITE-ROUTES] Installing LAB network routes..."
+echo "[PUB-SITE-ROUTES] Installing LAB network routes via ${REMOTE_PEER}..."
 
-ip route replace 192.168.10.0/24 dev "$IFACE"
-ip route replace 192.168.11.0/24 dev "$IFACE"
+ip route replace 192.168.10.0/24 via "$REMOTE_PEER" dev "$IFACE"
+ip route replace 192.168.11.0/24 via "$REMOTE_PEER" dev "$IFACE"
 
 echo "[PUB-SITE-ROUTES] Installed routes:"
 ip route show 192.168.10.0/24
