@@ -4,7 +4,7 @@ FROM ubuntu:24.04
 ENV container=docker
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG CTUNNEL_VERSION=v1.0.0
+ARG CTUNNEL_VERSION=v1.1.1
 
 # --------------------------------------------------
 # Base packages
