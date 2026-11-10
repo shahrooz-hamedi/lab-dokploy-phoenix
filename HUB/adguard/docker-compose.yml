@@ -52,8 +52,11 @@ volumes:
     name: hub-adguardhome-conf
 
 networks:
-  dokploy-network:
+  default:
+    external: true
     name: dokploy-network
+
+  dokploy-network:
     external: true
 
   xui-ipv6-egress:
