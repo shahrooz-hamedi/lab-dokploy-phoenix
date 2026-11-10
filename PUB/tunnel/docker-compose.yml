@@ -51,14 +51,6 @@ services:
         published: "2083"
         protocol: udp
         mode: host
-      - target: 2084
-        published: "2084"
-        protocol: tcp
-        mode: host
-      - target: 2084
-        published: "2084"
-        protocol: udp
-        mode: host
       # C-Tunnel Tunnel Ports (HUB to PUB)
       - target: 2087
         published: "2087"
@@ -66,14 +58,6 @@ services:
         mode: host
       - target: 2087
         published: "2087"
-        protocol: udp
-        mode: host
-      - target: 2088
-        published: "2088"
-        protocol: tcp
-        mode: host
-      - target: 2088
-        published: "2088"
         protocol: udp
         mode: host
       # C-Tunnel Tunnel Ports (Connection Test)
