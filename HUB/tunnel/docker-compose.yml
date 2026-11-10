@@ -114,7 +114,7 @@ volumes:
 
 networks:
   default:
-    name: dokploy-network
+    name: xui-ipv6-egress
     external: true
 
   xui-ipv6-egress:
