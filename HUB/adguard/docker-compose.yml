@@ -4,32 +4,42 @@ services:
     restart: unless-stopped
 
     ports:
+      # Plain DNS
       - "53:53/tcp"
       - "53:53/udp"
+
+      # DNS-over-TLS and DNS-over-QUIC
       - "853:853/tcp"
       - "853:853/udp"
 
     volumes:
       - adguardhome-work:/opt/adguardhome/work
       - adguardhome-conf:/opt/adguardhome/conf
+
+      # Certificate and private key for DoT / DoQ.
+      # Verify these files exist on the HUB host before deployment.
       - /etc/dokploy/traefik/dynamic/certificates/phoenix-rtp.com:/etc/adguard-certs:ro
 
     networks:
       dokploy-network:
-        ipv4_address: 10.0.1.150
+        ipv4_address: 10.0.1.20
+
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.20
+        ipv6_address: fd42:3a91:7c20:3::20
 
 volumes:
   adguardhome-work:
-    name: lab-adguard-4ynnux_adguardhome-work
+    name: hub-adguardhome-work
 
   adguardhome-conf:
-    name: lab-adguard-4ynnux_adguardhome-conf
+    name: hub-adguardhome-conf
 
 networks:
-  default:
+  dokploy-network:
     name: dokploy-network
     external: true
 
-  dokploy-network:
-    name: dokploy-network
+  xui-ipv6-egress:
+    name: xui-ipv6-egress
     external: true
