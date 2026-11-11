@@ -99,6 +99,9 @@ services:
 
   api:
     image: ghcr.io/dograh-hq/dograh-api:latest
+    build:
+      context: ./api
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
