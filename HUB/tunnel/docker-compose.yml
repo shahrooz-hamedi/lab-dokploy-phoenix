@@ -74,11 +74,6 @@ services:
         published: "5060"
         protocol: udp
         mode: host
-      # SIP / TLS
-      - target: 5061
-        published: "5061"
-        protocol: tcp
-        mode: host
       # RTP / UDP 20x Ports
       - target: 10000
         published: "10000"
