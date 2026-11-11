@@ -69,7 +69,13 @@ services:
       dograh-internal:
         aliases:
           - minio
-      dokploy-network: {}
+      dokploy-network:
+        ipv4_address: 10.0.1.41
+        aliases:
+          - dograh-minio
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.41
+        ipv6_address: fd42:3a91:7c20:3::41
 
   minio-init:
     image: ghcr.io/dograh-hq/dograh-api:latest
@@ -156,7 +162,13 @@ services:
       dograh-internal:
         aliases:
           - api
-      dokploy-network: {}
+      dokploy-network:
+        ipv4_address: 10.0.1.45
+        aliases:
+          - dograh-api
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.45
+        ipv6_address: fd42:3a91:7c20:3::45
 
   ui:
     image: ghcr.io/dograh-hq/dograh-ui:latest
@@ -166,11 +178,17 @@ services:
         condition: service_healthy
     environment:
       HOSTNAME: 0.0.0.0
-      BACKEND_URL: http://api:8000
+      BACKEND_URL: http://dograh-api:8000
       NODE_ENV: oss
       NEXT_TELEMETRY_DISABLED: "1"
     networks:
-      dokploy-network: {}
+      dokploy-network:
+        ipv4_address: 10.0.1.40
+        aliases:
+          - dograh-ui
+      xui-ipv6-egress:
+        ipv4_address: 172.23.0.40
+        ipv6_address: fd42:3a91:7c20:3::40
 
 volumes:
   postgres_data:
@@ -187,6 +205,11 @@ networks:
 
   dokploy-network:
     external: true
+    name: dokploy-network
+
+  xui-ipv6-egress:
+    external: true
+    name: xui-ipv6-egress
 
   dograh-internal:
     name: dograh-internal
