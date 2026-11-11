@@ -148,6 +148,13 @@ services:
       TELEPHONY_WS_TOKEN_ENFORCE: "true"
       LANGFUSE_TRACES_PUBLIC: "false"
 
+      HTTP_PROXY: http://172.23.0.10:8088
+      HTTPS_PROXY: http://172.23.0.10:8088
+      NO_PROXY: localhost,127.0.0.1,::1,postgres,redis,minio,api,dograh-api,dograh-postgres,dograh-redis,phoenix-rtp.com,192.168.10.0/24,192.168.11.0/24,10.100.0.0/16,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16,10.0.1.0/24,fd42:3a91:7c20:2::/64,fd42:3a91:7c20:3::/64
+      http_proxy: http://172.23.0.10:8088
+      https_proxy: http://172.23.0.10:8088
+      no_proxy: localhost,127.0.0.1,::1,postgres,redis,minio,api,dograh-api,dograh-postgres,dograh-redis,phoenix-rtp.com,192.168.10.0/24,192.168.11.0/24,10.100.0.0/16,172.19.0.0/16,172.23.0.0/16,172.30.0.0/16,10.0.1.0/24,fd42:3a91:7c20:2::/64,fd42:3a91:7c20:3::/64
+
     healthcheck:
       test:
         - CMD
