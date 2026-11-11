@@ -69,6 +69,21 @@ services:
         published: "7712"
         protocol: udp
         mode: host
+      # SIP / UDP
+      - target: 5060
+        published: "5060"
+        protocol: udp
+        mode: host
+      # SIP / TLS
+      - target: 5061
+        published: "5061"
+        protocol: tcp
+        mode: host
+      # RTP / UDP 20x Ports
+      - target: 10000-10019
+        published: "10000-10019"
+        protocol: udp
+        mode: host
 
     networks:
       default: {}
