@@ -1,31 +1,23 @@
-# LAB LXC Route Recovery — HUB and SIP Provider
+# LAB LXC — HUB and SIP Provider Routing
 
-This runbook documents routing from the LAB LAN to the HUB and
-to the Asiatech SIP/RTP provider networks.
+Run this procedure as `root` inside the LAB tunnel LXC (VMID 150).
 
-LAB is a Proxmox LXC deployment, not a Docker or Dokploy deployment.
+It configures persistent routing between LAB, HUB, and the Asiatech SIP/RTP provider networks. It does not restart C-Tunnel or change tunnel transport.
 
-## 1. Network details
+## 1. Network requirements
 
 | Item | Value |
 |---|---|
-| LAB LXC VMID | `150` |
 | LAB tunnel interface | `ct-lab-hub` |
-| Transport | WireGuard |
 | LAB tunnel address | `10.100.30.10` |
-| HUB tunnel address | `10.100.30.100` |
+| HUB tunnel peer | `10.100.30.100` |
 | LAB LXC LAN address | `192.168.11.50` |
-| LAB OpenWrt gateway | `192.168.11.1` |
-| FreePBX address | `192.168.11.30` |
+| OpenWrt gateway | `192.168.11.1` |
+| FreePBX | `192.168.11.30` |
 | HUB Docker subnet | `172.23.0.0/16` |
-| LAB systemd unit | `ctunnel@lab-hub.service` |
+| C-Tunnel unit | `ctunnel@lab-hub.service` |
 
-## 2. Required OpenWrt static routes
-
-The LAB OpenWrt router must send provider traffic to the LAB LXC
-at `192.168.11.50`.
-
-These routes must be configured persistently in OpenWrt:
+Required OpenWrt static routes:
 
 | Destination | Gateway |
 |---|---|
@@ -34,82 +26,33 @@ These routes must be configured persistently in OpenWrt:
 | `185.98.113.216/29` | `192.168.11.50` |
 | `185.98.113.120/29` | `192.168.11.50` |
 
-Do not replace or remove existing routes to HUB or PUB networks.
+Configure these routes persistently on OpenWrt. Do not change existing LAN default gateways or other site routes.
 
-## 3. Required LAB LXC routes
-
-The LAB LXC must route the following networks through
-`ct-lab-hub`:
-
-| Destination | Next hop / interface |
-|---|---|
-| `172.23.0.0/16` | `ct-lab-hub` |
-| `185.98.113.196/32` | `10.100.30.100` |
-| `185.98.113.208/29` | `10.100.30.100` |
-| `185.98.113.216/29` | `10.100.30.100` |
-| `185.98.113.120/29` | `10.100.30.100` |
-
-The provider routes must not use either LAB LAN default gateway.
-
-## 4. Inspect current state
-
-Run inside LAB LXC as root:
+## 2. Check prerequisites
 
 ```bash
-echo "========== LAB-HUB INTERFACE =========="
-ip -br addr show ct-lab-hub
+set -eu
 
-echo
-echo "========== LAB-HUB SERVICE =========="
-systemctl --no-pager --full status ctunnel@lab-hub.service
-
-echo
-echo "========== HUB ROUTE =========="
-ip route show 172.23.0.0/16
-
-echo
-echo "========== PROVIDER ROUTES =========="
-ip route show 185.98.113.196/32
-ip route show 185.98.113.208/29
-ip route show 185.98.113.216/29
-ip route show 185.98.113.120/29
-
-echo
-echo "========== ROUTE LOOKUPS =========="
-ip route get 172.23.0.100
-ip route get 185.98.113.196
-ip route get 185.98.113.209
-ip route get 185.98.113.217
-ip route get 185.98.113.121
-
-echo
-echo "========== FORWARDING =========="
-sysctl net.ipv4.ip_forward
+systemctl is-enabled ctunnel@lab-hub.service
+ip link show ct-lab-hub
+ip addr show ct-lab-hub
 ```
 
-Expected provider route lookups use:
+The `ct-lab-hub` interface must be created by the active `ctunnel@lab-hub.service` unit.
 
-```text
-via 10.100.30.100 dev ct-lab-hub
+## 3. Enable IPv4 forwarding persistently
+
+```bash
+cat > /etc/sysctl.d/90-lab-hub-forwarding.conf <<'EOF'
+net.ipv4.ip_forward = 1
+EOF
+
+sysctl --system
+
+test "$(sysctl -n net.ipv4.ip_forward)" = "1"
 ```
 
-Expected source address for locally generated route lookups:
-
-```text
-10.100.30.10
-```
-
-Forwarded packets originating from FreePBX retain their original
-source address until they reach the HUB tunnel container.
-
-## 5. Install persistent route recovery
-
-This installs the route script and attaches it to the correct
-WireGuard systemd unit.
-
-It does not restart the tunnel.
-
-Run inside LAB LXC as root:
+## 4. Install persistent route recovery
 
 ```bash
 set -eu
@@ -133,11 +76,9 @@ until ip link show dev "$IFACE" >/dev/null 2>&1; do
     sleep 1
 done
 
-echo "[LAB-HUB-ROUTES] Installing HUB route..."
+echo "[LAB-HUB-ROUTES] Installing routes..."
 
 ip route replace 172.23.0.0/16 dev "$IFACE"
-
-echo "[LAB-HUB-ROUTES] Installing SIP provider routes..."
 
 ip route replace 185.98.113.196/32 via "$HUB_PEER" dev "$IFACE"
 ip route replace 185.98.113.208/29 via "$HUB_PEER" dev "$IFACE"
@@ -161,20 +102,33 @@ cat > /etc/systemd/system/ctunnel@lab-hub.service.d/site-routes.conf <<'EOF'
 ExecStartPost=/usr/local/sbin/lab-hub-routes
 EOF
 
-# Remove the obsolete route hook from the inactive engine unit.
 rm -f /etc/systemd/system/ctunnel-engine@lab-hub.service.d/site-routes.conf
 
 systemctl daemon-reload
+```
 
-# Restore routes immediately without restarting WireGuard.
+## 5. Apply routes without restarting C-Tunnel
+
+```bash
 /usr/local/sbin/lab-hub-routes
 ```
 
-## 6. Verify routes and connectivity
+This immediately installs the routes. The `ExecStartPost` hook reinstalls them whenever `ctunnel@lab-hub.service` starts.
+
+## 6. Verify configuration
 
 ```bash
+echo "========== TUNNEL SERVICE =========="
+systemctl is-active ctunnel@lab-hub.service
+
+echo
+echo "========== IPV4 FORWARDING =========="
+sysctl net.ipv4.ip_forward
+
+echo
 echo "========== HUB ROUTE =========="
 ip route show 172.23.0.0/16
+ip route get 172.23.0.100
 
 echo
 echo "========== PROVIDER ROUTES =========="
@@ -184,8 +138,7 @@ ip route show 185.98.113.216/29
 ip route show 185.98.113.120/29
 
 echo
-echo "========== ROUTE LOOKUPS =========="
-ip route get 172.23.0.100
+echo "========== PROVIDER ROUTE LOOKUPS =========="
 ip route get 185.98.113.196
 ip route get 185.98.113.209
 ip route get 185.98.113.217
@@ -197,22 +150,28 @@ ping -c 4 -W 2 10.100.30.100
 ping -c 4 -W 2 172.23.0.100
 
 echo
-echo "========== ROUTE SCRIPT =========="
-cat /usr/local/sbin/lab-hub-routes
-
-echo
-echo "========== SYSTEMD DROP-IN =========="
+echo "========== SYSTEMD ROUTE HOOK =========="
 systemctl cat ctunnel@lab-hub.service
 ```
 
-## 7. Operational notes
+Expected provider route lookups:
 
-- The correct LAB-HUB unit is `ctunnel@lab-hub.service`.
-- `ctunnel-engine@lab-hub.service` must remain inactive.
-- The route hook runs whenever the WireGuard unit starts.
-- The immediate route installation does not restart the tunnel.
-- Do not change the LAB-HUB transport selection.
+```text
+via 10.100.30.100 dev ct-lab-hub src 10.100.30.10
+```
+
+Expected HUB Docker route:
+
+```text
+172.23.0.0/16 dev ct-lab-hub
+```
+
+## 7. Operational rules
+
+- Use `ctunnel@lab-hub.service`, not `ctunnel-engine@lab-hub.service`.
+- Do not change the WireGuard transport or tunnel addresses.
 - Do not change LAB LAN interfaces or default gateways.
-- Do not add NAT rules to the LAB LXC for this design.
-- The HUB tunnel container handles the provider-facing source NAT.
-- The LAB OpenWrt static routes must remain configured persistently.
+- Do not add NAT rules to the LAB LXC.
+- HUB tunnel container handles provider-facing source NAT and inbound SIP/RTP forwarding.
+- Keep the four OpenWrt static routes configured persistently.
+- Do not restart the tunnel merely to apply route changes.
