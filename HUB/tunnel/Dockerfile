@@ -1,4 +1,3 @@
-
 FROM ubuntu:24.04
 
 ENV container=docker
@@ -93,22 +92,25 @@ RUN chmod 0755 /usr/local/sbin/ctunnel-panel-start \
 #
 # HUB-PUB: QUIC-v1 (userspace engine)
 # HUB-LAB: WireGuard (kernel tunnel)
-#
-# Attach each route hook to the systemd unit
-# that actually manages its tunnel.
 # --------------------------------------------------
 COPY hub-pub-routes /usr/local/sbin/hub-pub-routes
 COPY hub-lab-routes /usr/local/sbin/hub-lab-routes
 
+# --------------------------------------------------
+# HUB SIP / RTP forwarding
+# --------------------------------------------------
+COPY hub-sip-forwarding /usr/local/sbin/hub-sip-forwarding
+
 RUN chmod 0755 \
         /usr/local/sbin/hub-pub-routes \
         /usr/local/sbin/hub-lab-routes \
+        /usr/local/sbin/hub-sip-forwarding \
     && mkdir -p \
         /etc/systemd/system/ctunnel-engine@hub-pub.service.d \
         /etc/systemd/system/ctunnel@hub-lab.service.d \
     && printf '[Service]\nExecStartPost=/usr/local/sbin/hub-pub-routes\n' \
        > /etc/systemd/system/ctunnel-engine@hub-pub.service.d/site-routes.conf \
-    && printf '[Service]\nExecStartPost=/usr/local/sbin/hub-lab-routes\n' \
+    && printf '[Service]\nExecStartPost=/usr/local/sbin/hub-lab-routes\nExecStartPost=/usr/local/sbin/hub-sip-forwarding\n' \
        > /etc/systemd/system/ctunnel@hub-lab.service.d/site-routes.conf
 
 # --------------------------------------------------
