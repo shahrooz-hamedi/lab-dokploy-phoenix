@@ -1,6 +1,7 @@
+
 # HUB Tunnel Host — Installation, Recovery and Verification
 
-This runbook installs and verifies persistent HUB host routes and the Docker networking required for SIP/RTP forwarding through the HUB-LAB tunnel.
+This runbook installs and verifies persistent HUB host routes and the Docker networking required for LAB/PUB connectivity and provider forwarding through the HUB-LAB tunnel.
 
 ## 1. Architecture
 
@@ -10,6 +11,7 @@ This runbook installs and verifies persistent HUB host routes and the Docker net
 | HUB tunnel container | Routes LAB networks through `ct-hub-lab` |
 | HUB tunnel container | DNATs provider SIP/RTP traffic to FreePBX |
 | HUB tunnel container | MASQUERADEs FreePBX-originated provider traffic |
+| HUB tunnel container | Forwards LAB tunnel endpoint traffic to the SIP provider |
 | HUB Docker bridge | Provides container-to-public-network NAT and forwarding |
 | LAB LXC | Routes provider destinations through `ct-lab-hub` |
 | LAB OpenWrt | Routes provider destinations to LAB LXC |
@@ -116,6 +118,10 @@ echo "========== FREEPBX ROUTE =========="
 docker exec "$C" ip route get 192.168.11.30
 
 echo
+echo "========== LAB TUNNEL PEER ROUTE =========="
+docker exec "$C" ip route get 10.100.30.10
+
+echo
 echo "========== IPV4 FORWARDING =========="
 docker exec "$C" sysctl net.ipv4.ip_forward
 
@@ -130,6 +136,12 @@ Expected FreePBX route:
 
 ```text
 192.168.11.30 dev ct-hub-lab src 10.100.30.100
+```
+
+Expected LAB tunnel peer route:
+
+```text
+10.100.30.10 dev ct-hub-lab src 10.100.30.100
 ```
 
 Expected forwarding:
@@ -171,12 +183,62 @@ Expected provider rules:
 | UDP 10000–10019 from `185.98.113.216/29` | DNAT to `192.168.11.30` |
 | UDP 10000–10019 from `185.98.113.120/29` | DNAT to `192.168.11.30` |
 | FreePBX to provider networks | MASQUERADE through `eth0` |
+| LAB tunnel endpoint `10.100.30.10` to SIP server `185.98.113.196` | FORWARD ACCEPT and source MASQUERADE through `eth0` |
 
 RTP destination ports must be preserved.
 
 TCP 5061 is not part of this configuration.
 
-Rule counters indicate matching traffic, not merely rule existence. Zero counters do not invalidate an otherwise correctly installed rule.
+### LAB tunnel endpoint provider forwarding
+
+The LAB LXC tunnel endpoint (`10.100.30.10`) has provider destination routes through the HUB-LAB peer (`10.100.30.100`).
+
+The HUB container must therefore permit this separate traffic path:
+
+```text
+LAB LXC
+10.100.30.10
+    |
+    | ct-lab-hub
+    v
+HUB tunnel container
+10.100.30.100
+    |
+    | ct-hub-lab -> eth0
+    v
+SIP provider
+185.98.113.196
+```
+
+The `hub-sip-forwarding` script installs two rules for this path:
+
+1. `FORWARD`: accepts traffic from `10.100.30.10/32` through `ct-hub-lab` to `185.98.113.196/32` through `eth0`.
+2. `POSTROUTING`: MASQUERADEs that traffic on `eth0` so the provider's return traffic reaches HUB.
+
+These are separate from the FreePBX (`192.168.11.30`) forwarding and NAT rules. Both paths must be retained.
+
+Verify the two rules:
+
+```bash
+C="hub-tunnel-kflvaq-tunnel-1"
+
+echo "========== LAB TUNNEL ENDPOINT FORWARD =========="
+docker exec "$C" iptables -C FORWARD \
+  -i ct-hub-lab -o eth0 \
+  -s 10.100.30.10/32 -d 185.98.113.196/32 \
+  -j ACCEPT
+
+echo "OK: LAB tunnel endpoint forwarding rule exists"
+
+echo
+echo "========== LAB TUNNEL ENDPOINT MASQUERADE =========="
+docker exec "$C" iptables -t nat -C POSTROUTING \
+  -o eth0 \
+  -s 10.100.30.10/32 -d 185.98.113.196/32 \
+  -j MASQUERADE
+
+echo "OK: LAB tunnel endpoint MASQUERADE rule exists"
+```
 
 ## 6. Verify published ports
 
@@ -273,6 +335,8 @@ After the HUB and LAB checks pass:
 4. Inspect the container NAT/FORWARD counters during the call.
 5. Confirm the public source address seen by the provider is the HUB public IPv4 address.
 
+For the LAB tunnel endpoint provider path, verify that traffic to `185.98.113.196` is routed through `ct-lab-hub` on LAB and that the corresponding HUB rule counters increase.
+
 Do not treat successful route lookups, published ports, or installed firewall rules as proof of a successful call.
 
 ## 9. Operational rules
@@ -284,6 +348,7 @@ Do not treat successful route lookups, published ports, or installed firewall ru
 - Do not change HUB-LAB transport.
 - HUB host owns persistent routes to remote site networks.
 - HUB container owns SIP/RTP forwarding and provider-facing NAT.
+- HUB container also owns the LAB tunnel endpoint's provider forwarding and source NAT.
 - Docker owns container-to-public-network forwarding and masquerading.
 - LAB LXC owns provider destination routes.
 - LAB OpenWrt owns routes from the LAB LAN to the LAB LXC.

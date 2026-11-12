@@ -12,6 +12,8 @@ WAN_IFACE="eth0"
 TUN_IFACE="ct-hub-lab"
 
 SIP_SERVER="185.98.113.196/32"
+LAB_TUNNEL_PEER="10.100.30.10/32"
+
 RTP_NETWORKS="
 185.98.113.208/29
 185.98.113.216/29
@@ -122,6 +124,24 @@ for NET in "$SIP_SERVER" $RTP_NETWORKS; do
         -j MASQUERADE
 
 done
+
+# --------------------------------------------------
+# LAB tunnel endpoint -> SIP provider forwarding
+# --------------------------------------------------
+
+echo "[HUB-SIP] Installing LAB tunnel endpoint provider forwarding..."
+
+# Permit provider-bound traffic originating from the LAB tunnel endpoint.
+ensure_rule filter FORWARD \
+    -i "$TUN_IFACE" -o "$WAN_IFACE" \
+    -s "$LAB_TUNNEL_PEER" -d "$SIP_SERVER" \
+    -j ACCEPT
+
+# Translate the LAB tunnel endpoint source for the provider return path.
+ensure_rule nat POSTROUTING \
+    -o "$WAN_IFACE" \
+    -s "$LAB_TUNNEL_PEER" -d "$SIP_SERVER" \
+    -j MASQUERADE
 
 # --------------------------------------------------
 # Established return traffic
