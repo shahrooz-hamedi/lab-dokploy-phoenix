@@ -10,7 +10,7 @@ This runbook installs and verifies persistent HUB host routes and the Docker net
 | HUB tunnel container | Routes LAB networks through `ct-hub-lab` |
 | HUB tunnel container | DNATs provider SIP/RTP traffic to FreePBX |
 | HUB tunnel container | MASQUERADEs FreePBX-originated provider traffic |
-| HUB Docker bridge | Provides container-to-public-network NAT |
+| HUB Docker bridge | Provides container-to-public-network NAT and forwarding |
 | LAB LXC | Routes provider destinations through `ct-lab-hub` |
 | LAB OpenWrt | Routes provider destinations to LAB LXC |
 | FreePBX | `192.168.11.30` |
@@ -32,7 +32,7 @@ HUB tunnel container:
 
 Run on the HUB host as root.
 
-The repository is the source of truth for both installation files.
+The repository is the source of truth.
 
 ```bash
 set -eu
@@ -61,6 +61,11 @@ systemctl is-active hub-host-routes.service
 ## 3. Verify HUB host routes
 
 ```bash
+echo "========== ROUTE SERVICE =========="
+systemctl is-enabled hub-host-routes.service
+systemctl is-active hub-host-routes.service
+
+echo
 echo "========== HUB HOST ROUTES =========="
 ip route show 172.19.0.0/16
 ip route show 192.168.10.0/24
@@ -71,6 +76,10 @@ ip route show 10.100.30.10/32
 echo
 echo "========== FREEPBX ROUTE =========="
 ip route get 192.168.11.30
+
+echo
+echo "========== ROUTE SERVICE DEFINITION =========="
+systemctl cat hub-host-routes.service
 ```
 
 Expected FreePBX route:
@@ -79,35 +88,9 @@ Expected FreePBX route:
 192.168.11.30 via 172.23.0.100 dev br-xui6
 ```
 
-## 4. Verify HUB tunnel container forwarding
+All five routes must use `172.23.0.100` through `br-xui6`.
 
-The container image installs:
-
-- `/usr/local/sbin/hub-lab-routes`
-- `/usr/local/sbin/hub-sip-forwarding`
-
-Both are attached to `ctunnel@hub-lab.service`, in this order:
-
-1. `hub-lab-routes`
-2. `hub-sip-forwarding`
-
-No separate host-level SIP DNAT or SNAT service is required.
-
-Expected forwarding configuration:
-
-| Traffic | Action |
-|---|---|
-| UDP 5060 from `185.98.113.196/32` | DNAT to `192.168.11.30:5060` |
-| UDP 10000–10019 from `185.98.113.208/29` | DNAT to FreePBX |
-| UDP 10000–10019 from `185.98.113.216/29` | DNAT to FreePBX |
-| UDP 10000–10019 from `185.98.113.120/29` | DNAT to FreePBX |
-| FreePBX traffic to provider networks | MASQUERADE through `eth0` |
-
-RTP destination ports are preserved. TCP 5061 is not part of this configuration.
-
-## 5. Verify the running container
-
-Run on the HUB host:
+## 4. Verify HUB tunnel container
 
 ```bash
 set -eu
@@ -121,11 +104,11 @@ docker inspect -f \
   'Status={{.State.Status}} Image={{.Config.Image}}' "$C"
 
 echo
-echo "========== CONTAINER INTERFACES =========="
+echo "========== INTERFACES =========="
 docker exec "$C" ip -br addr
 
 echo
-echo "========== CONTAINER ROUTES =========="
+echo "========== ROUTES =========="
 docker exec "$C" ip route
 
 echo
@@ -141,18 +124,6 @@ echo "========== TUNNEL SERVICE =========="
 docker exec "$C" systemctl is-active ctunnel@hub-lab.service
 docker exec "$C" systemctl show ctunnel@hub-lab.service \
   -p ExecStartPost --value
-
-echo
-echo "========== NAT PREROUTING =========="
-docker exec "$C" iptables -t nat -vnL PREROUTING
-
-echo
-echo "========== NAT POSTROUTING =========="
-docker exec "$C" iptables -t nat -vnL POSTROUTING
-
-echo
-echo "========== FORWARD =========="
-docker exec "$C" iptables -vnL FORWARD
 ```
 
 Expected FreePBX route:
@@ -167,11 +138,51 @@ Expected forwarding:
 net.ipv4.ip_forward = 1
 ```
 
-The NAT and FORWARD listings must contain the provider-specific rules described in section 4.
+The tunnel service must have both hooks:
 
-## 6. Verify Docker port publication
+1. `/usr/local/sbin/hub-lab-routes`
+2. `/usr/local/sbin/hub-sip-forwarding`
+
+Both must report successful execution.
+
+## 5. Verify container SIP/RTP forwarding
 
 ```bash
+C="hub-tunnel-kflvaq-tunnel-1"
+
+echo "========== DNAT =========="
+docker exec "$C" iptables -t nat -vnL PREROUTING
+
+echo
+echo "========== SNAT =========="
+docker exec "$C" iptables -t nat -vnL POSTROUTING
+
+echo
+echo "========== FORWARD =========="
+docker exec "$C" iptables -vnL FORWARD
+```
+
+Expected provider rules:
+
+| Traffic | Action |
+|---|---|
+| UDP 5060 from `185.98.113.196/32` | DNAT to `192.168.11.30:5060` |
+| UDP 10000–10019 from `185.98.113.208/29` | DNAT to `192.168.11.30` |
+| UDP 10000–10019 from `185.98.113.216/29` | DNAT to `192.168.11.30` |
+| UDP 10000–10019 from `185.98.113.120/29` | DNAT to `192.168.11.30` |
+| FreePBX to provider networks | MASQUERADE through `eth0` |
+
+RTP destination ports must be preserved.
+
+TCP 5061 is not part of this configuration.
+
+Rule counters indicate matching traffic, not merely rule existence. Zero counters do not invalidate an otherwise correctly installed rule.
+
+## 6. Verify published ports
+
+```bash
+set -eu
+
 C="hub-tunnel-kflvaq-tunnel-1"
 
 echo "========== SIP UDP =========="
@@ -185,7 +196,7 @@ done
 
 echo
 echo "========== TCP 5061 =========="
-if docker port "$C" 5061/tcp | grep -q .; then
+if docker port "$C" 5061/tcp 2>/dev/null | grep -q .; then
     echo "ERROR: TCP 5061 is published"
     exit 1
 else
@@ -195,45 +206,84 @@ fi
 
 Expected: UDP 5060 and every UDP port from 10000 through 10019 are published on the HUB host.
 
-## 7. Verify Docker bridge masquerading
+## 7. Verify Docker host forwarding and NAT
 
 Inspect the Docker network:
 
 ```bash
 docker network inspect xui-ipv6-egress \
-  --format 'Driver={{.Driver}} Options={{json .Options}}'
+  --format 'Id={{.Id}} Driver={{.Driver}} Internal={{.Internal}} Options={{json .Options}}'
 ```
 
-The bridge must be named `br-xui6`. Docker bridge IPv4 masquerading must not be explicitly disabled.
+Expected:
+- Driver: `bridge`
+- Internal: `false`
+- Bridge name: `br-xui6`
+- IPv4 masquerading must not be explicitly disabled.
 
-Inspect the actual HUB host NAT rules:
+Verify the actual host NAT rule:
 
 ```bash
-echo "========== DOCKER BRIDGE NAT =========="
-iptables -t nat -S POSTROUTING | grep -E \
-  '172\.23\.0\.0/16|br-xui6' || true
-
-echo
-echo "========== DOCKER FORWARD RULES =========="
-iptables -S FORWARD | grep -E \
-  'br-xui6|172\.23\.0\.0/16' || true
+echo "========== DOCKER BRIDGE MASQUERADE =========="
+iptables -t nat -C POSTROUTING \
+  -s 172.23.0.0/16 ! -o br-xui6 -j MASQUERADE \
+  && echo "OK: Docker bridge MASQUERADE exists"
 ```
 
-Confirm that Docker has a MASQUERADE rule for traffic from `172.23.0.0/16` leaving the bridge toward external networks.
+Verify Docker forwarding chains:
 
-If the network option explicitly disables masquerading, or the expected host NAT rule is absent, investigate Docker networking before testing provider traffic. Do not add duplicate NAT rules manually.
+```bash
+echo "========== HOST FORWARD =========="
+iptables -vnL FORWARD
 
-## 8. Operational rules
+echo
+echo "========== DOCKER-FORWARD =========="
+iptables -vnL DOCKER-FORWARD
+
+echo
+echo "========== DOCKER PUBLISHED PORT RULES =========="
+iptables -S DOCKER | grep '172.23.0.100'
+
+echo
+echo "========== BRIDGE NETFILTER =========="
+sysctl net.bridge.bridge-nf-call-iptables
+```
+
+Required forwarding behavior:
+
+- Host `FORWARD` chain jumps to `DOCKER-USER` and `DOCKER-FORWARD`.
+- `DOCKER-FORWARD` accepts traffic entering from `br-xui6`.
+- Docker `DOCKER` chain accepts the published UDP ports for `172.23.0.100`.
+- Docker bridge MASQUERADE rule exists.
+- `net.bridge.bridge-nf-call-iptables = 1`.
+
+A host `FORWARD` policy of `DROP` is acceptable when Docker's forwarding chains contain the required ACCEPT rules.
+
+Do not add manual firewall rules if any check fails. Investigate Docker's actual rules first.
+
+## 8. End-to-end operational test
+
+Configuration verification does not prove provider connectivity.
+
+After the HUB and LAB checks pass:
+
+1. Verify the provider SIP endpoint can reach FreePBX UDP 5060.
+2. Place an outbound call through the provider.
+3. Confirm two-way RTP media.
+4. Inspect the container NAT/FORWARD counters during the call.
+5. Confirm the public source address seen by the provider is the HUB public IPv4 address.
+
+Do not treat successful route lookups, published ports, or installed firewall rules as proof of a successful call.
+
+## 9. Operational rules
 
 - Do not add provider routes to the HUB host.
 - Do not install SIP DNAT/SNAT rules on the HUB host.
 - Do not install another tunnel on the HUB host.
 - Do not change HUB-PUB routing.
 - Do not change HUB-LAB transport.
-- The HUB host owns persistent routes to remote site networks.
-- The HUB container owns SIP/RTP forwarding and provider-facing NAT.
-- Docker owns container-to-public-network masquerading.
-- The LAB LXC owns provider destination routes.
-- OpenWrt owns routes from the LAB LAN to the LAB LXC.
-
-Do not consider SIP/RTP end-to-end connectivity verified until an actual provider call and RTP media flow have been tested.
+- HUB host owns persistent routes to remote site networks.
+- HUB container owns SIP/RTP forwarding and provider-facing NAT.
+- Docker owns container-to-public-network forwarding and masquerading.
+- LAB LXC owns provider destination routes.
+- LAB OpenWrt owns routes from the LAB LAN to the LAB LXC.
